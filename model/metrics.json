@@ -1,0 +1,47 @@
+{
+  "results": {
+    "LogisticRegression": {
+      "accuracy": 0.9673,
+      "precision_macro": 0.9682,
+      "recall_macro": 0.932,
+      "f1_macro": 0.9472
+    },
+    "RandomForest": {
+      "accuracy": 0.9745,
+      "precision_macro": 0.9561,
+      "recall_macro": 0.9691,
+      "f1_macro": 0.9622
+    },
+    "XGBoost": {
+      "accuracy": 0.9745,
+      "precision_macro": 0.9561,
+      "recall_macro": 0.9691,
+      "f1_macro": 0.9622
+    }
+  },
+  "best_model": "RandomForest",
+  "feature_columns": [
+    "url_length",
+    "num_dots",
+    "num_hyphens",
+    "num_special_chars",
+    "has_https",
+    "has_at_symbol",
+    "digit_ratio",
+    "entropy",
+    "num_suspicious_keywords",
+    "path_length",
+    "subdomain_count",
+    "domain_length",
+    "tld_suspicious",
+    "is_ip_url",
+    "is_shortened_url",
+    "has_port",
+    "redirect_count_proxy"
+  ],
+  "classes": [
+    "malicious",
+    "safe",
+    "suspicious"
+  ]
+}

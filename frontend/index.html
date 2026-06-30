@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>AI Security Intelligence Platform</title>
+<style>
+  :root {
+    --bg: #0b0f14;
+    --panel: #121822;
+    --border: #1f2937;
+    --text: #e5e7eb;
+    --muted: #9ca3af;
+    --safe: #22c55e;
+    --suspicious: #f59e0b;
+    --malicious: #ef4444;
+    --accent: #3b82f6;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: radial-gradient(circle at top, #0f172a, #05070a 70%);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 40px 20px;
+  }
+  .wrap { max-width: 720px; margin: 0 auto; }
+  header { text-align: center; margin-bottom: 32px; }
+  header h1 { font-size: 26px; margin-bottom: 6px; }
+  header p { color: var(--muted); font-size: 14px; }
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 24px;
+    margin-bottom: 20px;
+  }
+  .input-row { display: flex; gap: 10px; }
+  input[type=text] {
+    flex: 1;
+    padding: 14px 16px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: #0d1420;
+    color: var(--text);
+    font-size: 15px;
+    outline: none;
+  }
+  input[type=text]:focus { border-color: var(--accent); }
+  button {
+    padding: 14px 22px;
+    border-radius: 10px;
+    border: none;
+    background: var(--accent);
+    color: white;
+    font-weight: 600;
+    cursor: pointer;
+    font-size: 15px;
+  }
+  button:hover { background: #2563eb; }
+  button:disabled { opacity: 0.6; cursor: not-allowed; }
+
+  .examples { margin-top: 12px; display: flex; flex-wrap: wrap; gap: 8px; }
+  .examples span {
+    font-size: 12px; color: var(--muted); cursor: pointer;
+    border: 1px solid var(--border); padding: 4px 10px; border-radius: 999px;
+  }
+  .examples span:hover { border-color: var(--accent); color: var(--text); }
+
+  .result { display: none; }
+  .badge {
+    display: inline-block; padding: 4px 14px; border-radius: 999px;
+    font-weight: 700; font-size: 13px; letter-spacing: 0.5px;
+  }
+  .badge.safe { background: rgba(34,197,94,0.15); color: var(--safe); border: 1px solid var(--safe); }
+  .badge.suspicious { background: rgba(245,158,11,0.15); color: var(--suspicious); border: 1px solid var(--suspicious); }
+  .badge.malicious { background: rgba(239,68,68,0.15); color: var(--malicious); border: 1px solid var(--malicious); }
+
+  .row { display: flex; justify-content: space-between; align-items: center; margin: 14px 0 6px; }
+  .conf-bar-bg { background: #1f2937; border-radius: 8px; height: 10px; overflow: hidden; }
+  .conf-bar-fill { height: 100%; border-radius: 8px; transition: width 0.4s; }
+
+  ul.reasons { margin: 10px 0 0; padding-left: 18px; color: var(--text); font-size: 14px; line-height: 1.6; }
+
+  .features-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 8px 20px;
+    margin-top: 14px; font-size: 13px; color: var(--muted);
+  }
+  .features-grid div span { color: var(--text); font-weight: 600; }
+
+  .loading { color: var(--muted); font-size: 14px; display: none; }
+  .error { color: var(--malicious); font-size: 14px; display: none; }
+  footer { text-align: center; color: var(--muted); font-size: 12px; margin-top: 30px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>🛡️ AI Security Intelligence Platform</h1>
+    <p>Paste any URL — get an ML-based risk verdict with explainable reasoning.</p>
+  </header>
+
+  <div class="panel">
+    <div class="input-row">
+      <input type="text" id="urlInput" placeholder="https://example.com" />
+      <button id="checkBtn" onclick="checkUrl()">Analyze</button>
+    </div>
+    <div class="examples">
+      <span onclick="fillExample('https://secure-paypal-login-example.com')">phishing example</span>
+      <span onclick="fillExample('https://www.wikipedia.org')">known safe</span>
+      <span onclick="fillExample('https://newstartup-launch.io')">unseen new domain</span>
+      <span onclick="fillExample('http://192.168.10.4/bank-update.php')">IP-based URL</span>
+      <span onclick="fillExample('https://bit.ly/3xKj9Lm')">shortened URL</span>
+    </div>
+    <p class="loading" id="loading">Analyzing URL...</p>
+    <p class="error" id="error"></p>
+  </div>
+
+  <div class="panel result" id="resultPanel">
+    <div class="row">
+      <strong id="resultUrl" style="word-break: break-all;"></strong>
+      <span class="badge" id="badge"></span>
+    </div>
+
+    <div class="row" style="margin-top: 18px;">
+      <span style="color: var(--muted); font-size: 13px;">Confidence</span>
+      <span id="confValue" style="font-weight: 700;"></span>
+    </div>
+    <div class="conf-bar-bg"><div class="conf-bar-fill" id="confBar"></div></div>
+
+    <p style="margin: 16px 0 4px; color: var(--muted); font-size: 13px;">Why this verdict:</p>
+    <ul class="reasons" id="reasons"></ul>
+
+    <details style="margin-top: 16px;">
+      <summary style="cursor:pointer; color: var(--muted); font-size: 13px;">Show extracted features</summary>
+      <div class="features-grid" id="featuresGrid"></div>
+    </details>
+  </div>
+
+  <footer>Backend: FastAPI · Model: trained on URL/domain/security features · </footer>
+</div>
+
+<script>
+const API_BASE = "http://127.0.0.1:8000";
+
+function fillExample(url) {
+  document.getElementById("urlInput").value = url;
+  checkUrl();
+}
+
+async function checkUrl() {
+  const url = document.getElementById("urlInput").value.trim();
+  const errorEl = document.getElementById("error");
+  const loadingEl = document.getElementById("loading");
+  const resultPanel = document.getElementById("resultPanel");
+  errorEl.style.display = "none";
+  resultPanel.style.display = "none";
+
+  if (!url) { errorEl.textContent = "Please enter a URL."; errorEl.style.display = "block"; return; }
+
+  loadingEl.style.display = "block";
+  document.getElementById("checkBtn").disabled = true;
+
+  try {
+    const res = await fetch(`${API_BASE}/predict`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ url })
+    });
+    if (!res.ok) throw new Error(`Server error (${res.status})`);
+    const data = await res.json();
+    renderResult(data);
+  } catch (e) {
+    errorEl.textContent = "Could not reach API. Is the backend running on port 8000? (" + e.message + ")";
+    errorEl.style.display = "block";
+  } finally {
+    loadingEl.style.display = "none";
+    document.getElementById("checkBtn").disabled = false;
+  }
+}
+
+function renderResult(data) {
+  document.getElementById("resultUrl").textContent = data.url;
+
+  const badge = document.getElementById("badge");
+  badge.textContent = data.prediction.toUpperCase() + " · " + data.risk_level + " RISK";
+  badge.className = "badge " + data.prediction;
+
+  const pct = Math.round(data.confidence * 100);
+  document.getElementById("confValue").textContent = pct + "%";
+  const bar = document.getElementById("confBar");
+  bar.style.width = pct + "%";
+  bar.style.background = data.prediction === "safe" ? "var(--safe)" :
+                          data.prediction === "suspicious" ? "var(--suspicious)" : "var(--malicious)";
+
+  const reasonsEl = document.getElementById("reasons");
+  reasonsEl.innerHTML = "";
+  data.risk_factors.forEach(r => {
+    const li = document.createElement("li");
+    li.textContent = r;
+    reasonsEl.appendChild(li);
+  });
+
+  const grid = document.getElementById("featuresGrid");
+  grid.innerHTML = "";
+  Object.entries(data.feature_summary).forEach(([k, v]) => {
+    const div = document.createElement("div");
+    div.innerHTML = `${k.replace(/_/g, " ")}: <span>${v}</span>`;
+    grid.appendChild(div);
+  });
+
+  document.getElementById("resultPanel").style.display = "block";
+}
+
+document.getElementById("urlInput").addEventListener("keydown", (e) => {
+  if (e.key === "Enter") checkUrl();
+});
+</script>
+</body>
+</html>

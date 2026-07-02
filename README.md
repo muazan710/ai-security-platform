@@ -1,321 +1,671 @@
-# AI Security Intelligence Platform
+# 🛡️ AI Security Intelligence Platform
 
-An end-to-end ML-powered system that analyzes a URL and predicts whether it is
-**Safe**, **Suspicious**, or **Malicious**, with human-readable, explainable
-reasoning behind every prediction.
+### Hybrid AI-Powered Malicious URL Detection using Machine Learning, Rule-Based Analysis & Threat Intelligence
+
+![Architecture](architecture.png)
+
+---
+
+# 📌 Overview
+
+The **AI Security Intelligence Platform** is a hybrid cybersecurity solution designed to detect and analyze malicious URLs using a multi-layered security approach. Instead of relying solely on Machine Learning, the platform combines **Feature Engineering**, **Rule-Based Detection**, **Domain Intelligence**, **Threat Intelligence**, and an **AI Security Agent** to provide accurate predictions together with explainable security insights.
+
+The system classifies URLs into three categories:
+
+- 🟢 Safe
+- 🟡 Suspicious
+- 🔴 Malicious
+
+Each submitted URL undergoes multiple security checks, including feature extraction, phishing pattern detection, domain validation, machine learning prediction, and optional VirusTotal verification. The final output includes the predicted class, confidence score, risk level, detected risk factors, domain information, and a human-readable security explanation.
+
+This project demonstrates the practical implementation of **Machine Learning**, **FastAPI**, **Cybersecurity**, **Threat Intelligence**, and **Explainable AI** in a real-world malicious URL detection system.
+
+---
+
+# 🎯 Project Objectives
+
+The primary objective of this project is to develop a hybrid AI-powered cybersecurity platform capable of identifying malicious URLs with improved accuracy and transparency.
+
+The platform aims to:
+
+- Detect whether a URL is **Safe**, **Suspicious**, or **Malicious**.
+- Extract meaningful security-related features from URLs.
+- Compare multiple Machine Learning models.
+- Improve prediction accuracy using rule-based phishing detection.
+- Perform domain validation using DNS, WHOIS, and RDAP.
+- Integrate VirusTotal for external threat intelligence.
+- Generate human-readable explanations using an AI Security Agent.
+- Provide an interactive dashboard for real-time URL analysis.
+
+---
+
+# ✨ Key Features
+
+## 🔍 URL Security Analysis
+
+- Real-time URL analysis
+- Safe, Suspicious, and Malicious classification
+- Confidence score calculation
+- Risk level assessment
+
+## 🤖 Machine Learning
+
+- Logistic Regression
+- Random Forest
+- XGBoost
+- Multi-model comparison
+- Automatic best model selection
+
+## 🛡 Rule-Based Detection
+
+- Suspicious keyword detection
+- Typosquatting detection
+- Suspicious TLD detection
+- IP address detection
+- URL shortener detection
+- Rule-based prediction override
+
+## 🌐 Domain Intelligence
+
+- DNS Resolution
+- Domain Availability
+- WHOIS Lookup
+- RDAP Lookup
+- Domain Age Analysis
+
+## ⚡ Threat Intelligence
+
+- VirusTotal Integration
+- Detection Ratio
+- Reputation Analysis
+- External Threat Verification
+
+## 💬 AI Security Agent
+
+- Human-readable explanations
+- Security recommendations
+- Risk factor analysis
+- Explainable AI
+
+## 📊 Dashboard
+
+- Interactive web interface
+- Model selection
+- AI Agent toggle
+- Threat Intelligence toggle
+- Risk visualization
+- Prediction summary
+
+## 🚀 Backend API
+
+- FastAPI
+- REST API
+- JSON Responses
+- Swagger Documentation
+
+---
+
+# 🏗️ System Architecture
+
+The AI Security Intelligence Platform follows a layered architecture where every submitted URL passes through multiple security stages before generating the final prediction.
+
+The system combines Feature Engineering, Machine Learning, Rule-Based Detection, Domain Intelligence, Threat Intelligence, and an AI Security Agent to produce a comprehensive security assessment.
+
+![System Architecture](architecture.png)
+
+### Architecture Workflow
+
+1. User submits a URL through the dashboard.
+2. FastAPI receives the request.
+3. Security-related features are extracted from the URL.
+4. The selected Machine Learning model predicts the URL category.
+5. Rule-Based Detection checks for known phishing patterns.
+6. Domain Intelligence validates domain information.
+7. VirusTotal Threat Intelligence performs external verification (optional).
+8. AI Security Agent generates a human-readable explanation.
+9. The backend returns the final security report to the dashboard.
+
+---
+# 📂 Project Structure
+
+```text
+project/
+│
+├── backend/
+│   ├── main.py
+│   ├── features.py
+│   ├── requirements.txt
+│   └── .env
+│
+├── frontend/
+│   └── index.html
+│
+├── model/
+│   ├── train.py
+│   ├── features.py
+│   ├── best_model.joblib
+│   ├── model_LogisticRegression.joblib
+│   ├── model_RandomForest.joblib
+│   ├── model_XGBoost.joblib
+│   ├── label_encoder.joblib
+│   ├── metrics.json
+│   ├── feature_importance.png
+│   ├── model_comparison.png
+│   └── confusion_matrix_*.png
+│
+├── dataset/
+│   ├── phishing_dataset.csv
+│   └── generate_dataset.py
+│
+├── notebooks/
+│   ├── eda.py
+│   └── feature_distributions.png
+│
+├── screenshots/
+│   ├── 1-dashboard.png
+│   ├── 2-safe-url.png
+│   ├── 3-malicious-url.png
+│   ├── 4-model-comparison.png
+│   ├── 5-ai-agent.png
+│   ├── 6-threat-intelligence.png
+│   ├── 7-domain-age.png
+│   ├── 8-api-docs.png
+│   ├── 9-feature-importance.png
+│   └── 10-confusion-matrix.png
+│
+├── architecture.png
+├── Dockerfile
+├── README.md
+└── .gitignore
+```
+
+---
+
+# 📁 Folder Description
+
+| Folder | Purpose |
+|---------|----------|
+| **backend/** | FastAPI backend responsible for URL analysis, Machine Learning prediction, Domain Intelligence, AI Agent, and Threat Intelligence. |
+| **frontend/** | Interactive dashboard built using HTML, CSS, and JavaScript. |
+| **model/** | Training pipeline, trained models, evaluation metrics, feature importance, and comparison graphs. |
+| **dataset/** | Dataset used for training and testing the Machine Learning models. |
+| **notebooks/** | Exploratory Data Analysis (EDA) scripts and dataset visualization. |
+| **screenshots/** | Images used in the project documentation and README. |
+| **architecture.png** | High-level architecture diagram of the platform. |
+| **Dockerfile** | Docker configuration for deployment. |
+| **README.md** | Complete project documentation. |
+
+---
+
+# 📊 Dataset Preparation
+
+The platform is trained using a phishing URL dataset containing three different security categories.
+
+| Class | Description |
+|--------|-------------|
+| 🟢 Safe | Legitimate and trusted websites |
+| 🟡 Suspicious | URLs that exhibit suspicious characteristics |
+| 🔴 Malicious | Confirmed phishing, scam, or harmful websites |
+
+The dataset is stored in:
+
+```text
+dataset/phishing_dataset.csv
+```
+
+---
+
+## Data Preprocessing
+
+Before training the Machine Learning models, the dataset was cleaned and preprocessed to improve data quality.
+
+The preprocessing pipeline includes:
+
+- Removing duplicate URLs
+- Removing missing values
+- Standardizing URL format
+- Label Encoding
+- Feature Extraction
+- Train/Test Split
+
+These preprocessing steps ensure that the models are trained using clean and consistent data.
+
+---
+
+# 🔍 Feature Engineering
+
+Instead of training directly on raw URLs, the platform extracts meaningful cybersecurity features that represent the structure and behaviour of each URL.
+
+A total of **17 security-related features** are extracted before prediction.
+
+## URL Features
+
+- URL Length
+- Number of Dots
+- Number of Hyphens
+- Number of Special Characters
+- HTTPS Detection
+- @ Symbol Detection
+- Digit Ratio
+- URL Path Length
+
+---
+
+## Domain Features
+
+- Domain Length
+- Number of Subdomains
+- Suspicious Top-Level Domain (TLD)
+- Domain Age
+- DNS Resolution
+
+---
+
+## Security Features
+
+- Suspicious Keyword Detection
+- IP Address Detection
+- URL Shortener Detection
+- Redirect Count
+- Shannon Entropy
+
+These handcrafted features enable the Machine Learning models to identify phishing patterns instead of memorizing URLs, allowing the platform to generalize better to previously unseen malicious websites.
+
+---
+
+# 🤖 Machine Learning Models
+
+The platform supports multiple supervised Machine Learning algorithms for URL classification.
+
+## Logistic Regression
+
+Used as the baseline model due to its simplicity, fast prediction speed, and interpretability.
+
+---
+
+## Random Forest
+
+An ensemble learning algorithm that combines multiple decision trees to improve prediction accuracy while reducing overfitting.
+
+---
+
+## XGBoost
+
+A powerful gradient boosting algorithm capable of learning complex phishing patterns and providing high predictive performance.
+
+---
+
+## Training Pipeline
+
+The complete Machine Learning pipeline consists of the following steps:
+
+1. Load the dataset.
+2. Clean and preprocess the data.
+3. Extract security-related features.
+4. Encode target labels.
+5. Split data into training and testing sets.
+6. Train all three Machine Learning models.
+7. Evaluate model performance.
+8. Select the best model using **Macro F1 Score**.
+9. Save trained models for deployment.
+
+---
+
+## Evaluation Metrics
+
+Each Machine Learning model is evaluated using:
+
+- Accuracy
+- Precision
+- Recall
+- Macro F1 Score
+- Confusion Matrix
+
+The best-performing model is automatically exported as:
+
+```text
+best_model.joblib
+```
+
+The remaining trained models are also saved for comparison and experimentation.
+
+---
+# 📈 Model Evaluation & Results
+
+To ensure reliable performance, all Machine Learning models were evaluated using multiple classification metrics instead of relying only on accuracy.
+
+The following evaluation metrics were used:
+
+- Accuracy
+- Precision
+- Recall
+- Macro F1 Score
+- Confusion Matrix
+
+The best-performing model was automatically selected using the **Macro F1 Score** and exported for deployment.
+
+---
+
+## 📊 Model Comparison
+
+The platform compares the performance of Logistic Regression, Random Forest, and XGBoost to identify the most suitable model for malicious URL detection.
+
+The comparison includes Accuracy, Precision, Recall, and Macro F1 Score.
+
+![Model Comparison](screenshots/4-model-comparison.png)
+
+---
+
+## 📈 Feature Importance
+
+Feature Importance analysis helps identify which security-related features contribute the most to the prediction process.
+
+Understanding feature importance improves model interpretability and provides insights into phishing detection patterns.
+
+![Feature Importance](screenshots/9-feature-importance.png)
+
+---
+
+## 🎯 Confusion Matrix
+
+The Confusion Matrix provides a detailed visualization of the model's classification performance across all three classes.
+
+It illustrates how accurately the model distinguishes between:
+
+- Safe URLs
+- Suspicious URLs
+- Malicious URLs
+
+![Confusion Matrix](screenshots/10-confusion-matrix.png)
+
+---
+
+# 🤖 AI Security Agent
+
+The platform includes an AI Security Agent that generates human-readable explanations for every prediction.
+
+Instead of displaying only the predicted class, the AI Agent explains why the URL is considered Safe, Suspicious, or Malicious.
+
+The explanation includes:
+
+- Prediction summary
+- Risk assessment
+- Domain validation
+- HTTPS status
+- Suspicious keyword detection
+- Security recommendations
+
+![AI Security Agent](screenshots/5-ai-agent.png)
+
+---
+
+# 🌐 Threat Intelligence
+
+To improve detection reliability, the platform integrates VirusTotal Threat Intelligence.
+
+This module compares the Machine Learning prediction with external threat intelligence collected from multiple security vendors.
+
+The Threat Intelligence report includes:
+
+- Detection Ratio
+- Reputation Score
+- Malicious Detections
+- Suspicious Detections
+- External Threat Verification
+
+![Threat Intelligence](screenshots/6-threat-intelligence.png)
+
+---
+
+# 🌍 Domain Intelligence
+
+The platform performs domain validation before generating the final prediction.
+
+The Domain Intelligence module performs:
+
+- DNS Resolution
+- Domain Availability Check
+- WHOIS Lookup
+- RDAP Lookup
+- Domain Age Analysis
+
+This information helps identify newly registered phishing domains and suspicious websites.
+
+![Domain Intelligence](screenshots/7-domain-age.png)
+
+---
+
+# 📚 API Documentation
+
+The backend is developed using **FastAPI** and provides interactive API documentation using **Swagger UI**.
+
+Developers can easily test endpoints, inspect request formats, and verify responses directly from the browser.
+
+Main Endpoint:
+
+```http
+POST /predict
+```
+
+The API returns:
+
+- Prediction
+- Confidence Score
+- Risk Level
+- Feature Summary
+- Domain Information
+- AI Explanation
+- Threat Intelligence Results
+
+![Swagger Documentation](screenshots/8-api-docs.png)
+
+---
+# ⚙️ Installation
+
+## Prerequisites
+
+Before running the project, make sure the following software is installed:
+
+- Python 3.10 or later
+- Git
+- FastAPI
+- Uvicorn
+- pip
+
+---
+
+## Clone the Repository
+
+```bash
+git clone https://github.com/your-username/ai-security-intelligence-platform.git
+
+cd ai-security-intelligence-platform
+```
+
+---
+
+## Install Dependencies
+
+```bash
+pip install -r requirements.txt
+```
+
+---
+
+## Configure Environment Variables
+
+Create a `.env` file inside the `backend/` directory.
+
+Example:
+
+```env
+VIRUSTOTAL_API_KEY=YOUR_API_KEY
+OPENAI_API_KEY=YOUR_API_KEY
+```
+
+---
+
+# 🚀 Running the Project
+
+## Start the Backend
+
+```bash
+cd backend
+
+uvicorn main:app --reload --port 8000
+```
+
+Backend will be available at:
 
 ```
-Input:  https://secure-paypal-login-example.com
-Output:
-  Risk Level: HIGH
-  Prediction: malicious
-  Confidence: 80.6%
-  Reasons:
-    - Contains suspicious keyword(s): login, secure, paypal
+http://127.0.0.1:8000
+```
+
+Swagger Documentation:
+
+```
+http://127.0.0.1:8000/docs
 ```
 
 ---
 
-## 1. Architecture
+## Start the Frontend
 
-```
-                ┌─────────────────────┐
-                │   Frontend (HTML)   │
-                │  index.html + JS    │
-                └─────────┬───────────┘
-                          │ POST /predict
-                          ▼
-                ┌─────────────────────┐
-                │   FastAPI Backend   │
-                │  - rate limiting    │
-                │  - input validation │
-                │  - feature extract  │
-                │  - model inference  │
-                │  - explainability   │
-                └─────────┬───────────┘
-                          │ loads
-                          ▼
-        ┌──────────────────────────────────┐
-        │            model/                │
-        │ best_model.joblib (RandomForest) │
-        │ label_encoder.joblib             │
-        │ features.py (shared extractor)   │
-        │ metrics.json                     │
-        └──────────────────────────────────┘
-                          ▲
-                          │ trained on
-        ┌──────────────────────────────────┐
-        │           dataset/                │
-        │   phishing_dataset.csv            │
-        └──────────────────────────────────┘
+```bash
+cd frontend
+
+python -m http.server 3000
 ```
 
-See `architecture.png` for the rendered diagram (generated from this
-description — open in any image viewer).
+Open the dashboard in your browser:
 
-**Why this design:**
-- `features.py` is a single shared module imported by both the training
-  script and the API, so the features the model is *served* with always
-  match the features it was *trained* on (a very common source of
-  train/serve skew bugs in real ML systems).
-- The model artifacts are loaded once at API startup (not per-request) for
-  low latency.
-
----
-
-## 2. Dataset (Part 1)
-
-**Source & why:** This environment had no internet access to pull a live
-Kaggle/UCI CSV, so `dataset/generate_dataset.py` builds a dataset that
-**mirrors the exact structural patterns** documented in the UCI "Phishing
-Websites Dataset" and Kaggle "Phishing Site URLs" research (IP-based URLs,
-excessive subdomains, suspicious keywords, shortened URLs, suspicious TLDs,
-lookalike brand domains) combined with ~45 real, well-known legitimate
-domains for the safe class. `load_real_dataset()` in the same file is a
-one-line swap-in point to plug in the actual Kaggle/UCI CSV once you have
-internet access — no other code needs to change, since `features.py`
-operates on raw URL strings.
-
-- **Size:** 1,373 URLs after de-duplication (600 malicious / 567 safe / 206 suspicious)
-- **Cleaning:** dropped nulls, dropped duplicate URLs
-- **Limitations:**
-  - Synthetic generation means it will not capture every real-world phishing
-    technique (e.g. homograph/unicode attacks, compromised legitimate sites,
-    very recent campaigns) — a real Kaggle/UCI/PhishTank dataset should
-    replace it before production use.
-  - Class "suspicious" is the hardest to define consistently even for
-    humans — it is intentionally a noisier gray-zone class.
-  - No live signals (domain age, WHOIS, redirect chains, SSL cert issuer)
-    are available without network/API access — these are flagged as
-    feature engineering "if possible" extensions below.
-- **Feature importance:** see `model/feature_importance.png` — suspicious
-  keyword count, TLD suspicion, and IP-based URL detection are the top
-  signals for the trained model.
-
-Run `python dataset/generate_dataset.py` to regenerate.
-
----
-
-## 3. Feature Engineering (Part 2)
-
-All features are extracted in `model/features.py` (shared by training + API):
-
-| Category | Features |
-|---|---|
-| URL | length, dot count, hyphen count, special char count, HTTPS flag, `@` symbol, digit ratio, domain entropy, suspicious keyword count, path length |
-| Domain | subdomain count, domain length, TLD suspicion flag |
-| Security | IP-address-based URL detection, shortened-URL detection, redirect-count proxy, port presence |
-
-**Note on domain age / live redirect count:** true domain-age (WHOIS) and
-live redirect-chain following both require outbound network/API calls
-(e.g. WHOIS API, following HTTP redirects) which are not available in this
-sandboxed environment. The code is structured so these can be added as two
-extra columns in `features.py` + `FEATURE_COLUMNS` without touching the rest
-of the pipeline — see `# TODO: live signals` markers.
-
----
-
-## 4. Machine Learning Model (Part 3)
-
-Three models trained and compared in `model/train.py`:
-
-| Model | Accuracy | Precision (macro) | Recall (macro) | F1 (macro) |
-|---|---|---|---|---|
-| Logistic Regression | 96.7% | 96.8% | 93.2% | 94.7% |
-| **Random Forest (selected)** | **97.5%** | 95.6% | **96.9%** | **96.2%** |
-| XGBoost | 97.5% | 95.6% | 96.9% | 96.2% |
-
-Confusion matrices: `model/confusion_matrix_<ModelName>.png`
-Comparison chart: `model/model_comparison.png`
-
-**Why Random Forest was selected:** XGBoost tied it on every metric, but
-Random Forest was chosen as the production model because (a) it is far less
-prone to overfitting on a relatively small/synthetic dataset, (b) it
-requires no hyperparameter tuning to reach this performance, (c) its
-`feature_importances_` are simpler to expose to non-technical users than
-gradient boosting's, and (d) inference latency difference is negligible at
-this scale. In a system with millions of real labelled URLs, XGBoost would
-likely pull ahead and would be the next thing to A/B test.
-
----
-
-## 5. Explainability (Part 4)
-
-Two layers of explainability are implemented:
-
-1. **Global:** `model/feature_importance.png` — which features matter most
-   across the whole model (Random Forest's built-in `feature_importances_`).
-2. **Per-prediction (the part users actually see):** `_build_risk_factors()`
-   in `backend/main.py` converts the raw extracted features of *this specific
-   URL* into plain-English reasons ("Contains suspicious keyword: login",
-   "Excessive subdomain usage", "Uses a known URL shortening service", etc.)
-   — this directly answers "why was this URL marked risky?" for any user,
-   technical or not.
-
-A **consistency safeguard** is also implemented: if the ML model assigns a
-non-safe label with low confidence (<65%) but the rule-based explainability
-layer finds **zero** actual red flags, the system overrides toward "safe"
-rather than showing a confusing high-risk verdict with no supporting reason.
-This was added specifically because a finite training set cannot cover every
-legitimate new domain on the internet, and a verdict with no explanation is
-worse than a slightly conservative one.
-
-(SHAP is included in requirements.txt for further per-prediction
-explanation; `feature_importance.png` plus the rule-based reasons cover the
-explainability requirement end-to-end for this submission timeline.)
-
----
-
-## 6. Backend API (Part 5)
-
-FastAPI, `backend/main.py`.
-
-### `GET /`
-Health check + currently loaded model + its metrics.
-
-### `POST /predict`
-**Request**
-```json
-{ "url": "https://secure-paypal-login-example.com" }
 ```
-**Response**
+http://127.0.0.1:3000
+```
+
+---
+
+# 📡 API Usage
+
+## Request
+
+```http
+POST /predict
+```
+
+Example JSON Request
+
 ```json
 {
-  "url": "https://secure-paypal-login-example.com",
-  "prediction": "malicious",
-  "confidence": 0.8067,
-  "risk_level": "HIGH",
-  "risk_factors": ["Contains suspicious keyword(s): login, secure, paypal"],
-  "feature_summary": { "...": "all extracted numeric features" }
+    "url": "https://secure-paypal-login-example.com",
+    "model_name": "RandomForest",
+    "use_ai_agent": true,
+    "use_threat_intel": true
 }
 ```
 
-Interactive docs auto-generated by FastAPI at `http://localhost:8000/docs`.
-
 ---
 
-## 7. Dashboard (Part 6)
+## Example Response
 
-`frontend/index.html` — a single static HTML/JS file, no build step. Open it
-directly in a browser (with the backend running) to:
-- enter a URL
-- see the prediction + risk level badge
-- see a confidence bar
-- see the plain-English risk factors
-- expand "Show extracted features" for the raw feature values
-
-Click the example chips to quickly test a phishing URL, a known-safe URL, a
-brand-new unseen domain, an IP-based URL, and a shortened URL.
-
----
-
-## 8. Security Considerations (Part 7)
-
-| Threat | Description | Mitigation implemented / suggested |
-|---|---|---|
-| **Data poisoning** | Attacker submits crafted "safe-looking" malicious URLs into a future retraining pipeline (if user feedback is fed back into training) | Never auto-retrain on unverified user-submitted labels; require human review / trusted-source labelling before any sample enters the training set; monitor for sudden distribution shifts |
-| **Adversarial URLs** | Attacker tweaks a malicious URL (e.g. adds harmless-looking subdomains, uses homograph/unicode lookalike characters, mixes in legitimate-looking padding) specifically to dodge the feature thresholds the model learned | Combine ML score with rule-based heuristics (already done here via `risk_factors`) so a single feature can't be gamed alone; add adversarial examples to training data; add Unicode/homograph normalization before feature extraction |
-| **Model manipulation / model theft** | If model file or `/predict` responses leak too much internal detail, an attacker can reverse-engineer decision boundaries | Don't expose raw model weights publicly; rate-limit `/predict`; avoid returning raw probability vectors for *all* classes (only the top one) in production; log and monitor for systematic probing patterns (many near-boundary queries from one client) |
-| **API abuse** | Bulk scraping the prediction API to test thousands of phishing URLs and find which ones bypass detection, or denial-of-service | Implemented: basic in-memory rate limiter (60 req/min in `backend/main.py`); production: API keys / OAuth, per-key quotas, Web Application Firewall, request size limits (`url` capped at 2048 chars), CORS restricted to known frontend origin (currently `*` for local dev demo only) |
-| **Input injection** | Malformed/oversized URL strings sent to crash parsing logic | `extract_features()` wraps `urlparse` in try/except and falls back safely; Pydantic validates request shape and length before it reaches feature extraction |
-
----
-
-## 9. Setup Instructions (Part 8)
-
-### Local (no Docker)
-```bash
-# 1. Install deps
-pip install -r backend/requirements.txt
-
-# 2. (Optional) regenerate dataset + retrain model
-python dataset/generate_dataset.py
-python model/train.py
-
-# 3. Run backend
-cd backend
-uvicorn main:app --reload --port 8000
-
-# 4. Open the dashboard
-# Just open frontend/index.html directly in your browser
-```
-
-### Docker
-```bash
-docker build -t ai-security-platform .
-docker run -p 8000:8000 ai-security-platform
-# then open frontend/index.html in a browser
+```json
+{
+    "prediction": "Malicious",
+    "confidence": 98.7,
+    "risk_level": "High",
+    "domain_exists": true,
+    "domain_age": "45 Days",
+    "risk_factors": [
+        "Suspicious Keywords",
+        "Suspicious TLD",
+        "High URL Entropy"
+    ]
+}
 ```
 
 ---
 
-## 10. Interview Discussion — Quick Answers
+# 📷 Project Screenshots
 
-1. **Why this ML model?** Random Forest: best macro-F1 tied with XGBoost,
-   simpler to maintain/tune, less overfitting risk on a smaller dataset, and
-   transparent feature importances. Re-evaluate against XGBoost once a much
-   larger labelled dataset is available.
-2. **How can attackers bypass detection?** Homograph domains, compromised
-   legitimate infrastructure, very short-lived "fast-flux" domains, padding
-   URLs to dilute keyword-density features, using HTTPS + clean TLDs to
-   defeat the more obvious heuristics. Mitigation: ensemble of ML + rule
-   heuristics + external threat intel (VirusTotal) rather than relying on
-   any single signal.
-3. **How to scale to millions of URLs?** Move from a single in-process model
-   to a stateless API behind a load balancer; cache predictions for
-   recently-seen URLs/domains (Redis); batch feature extraction; move model
-   inference to a dedicated serving layer (e.g. ONNX/Triton) if latency
-   becomes a bottleneck; precompute domain-level reputation scores async.
-4. **How to monitor model drift?** Track prediction distribution and
-   confidence histograms over time, log a sample of predictions vs. later
-   ground truth (e.g. confirmed phishing takedowns), alert on feature
-   distribution shifts (e.g. PSI/KL-divergence on `url_length`,
-   `entropy`, etc.), scheduled retraining cadence with held-out validation
-   sets.
-5. **How to secure the prediction API?** API key auth + per-key rate
-   limiting (basic version implemented), HTTPS only, input length/shape
-   validation (implemented via Pydantic), restrict CORS origins in
-   production, don't leak full probability vectors or model internals, log
-   and alert on abuse patterns, run behind a WAF.
+## Dashboard
+
+![Dashboard](screenshots/1-dashboard.png)
 
 ---
 
-## 11. Project Structure
+## Safe URL Detection
 
-```
-project/
-├── backend/
-│   ├── main.py            # FastAPI app
-│   └── requirements.txt
-├── frontend/
-│   └── index.html         # single-file dashboard
-├── model/
-│   ├── features.py         # shared feature extraction
-│   ├── train.py             # trains & compares 3 models
-│   ├── best_model.joblib
-│   ├── label_encoder.joblib
-│   ├── metrics.json
-│   ├── confusion_matrix_*.png
-│   ├── feature_importance.png
-│   └── model_comparison.png
-├── dataset/
-│   ├── generate_dataset.py
-│   └── phishing_dataset.csv
-├── notebooks/              # (optional EDA notebook can go here)
-├── Dockerfile
-└── README.md
-```
+![Safe URL](screenshots/2-safe-url.png)
 
 ---
 
-## 12. Bonus / Future Work (not implemented in this timeline)
+## Malicious URL Detection
 
-- **AI Security Agent:** wire the existing `risk_factors` list into an LLM
-  prompt to generate a conversational explanation ("Why is this dangerous?")
-  — the rule-based reasons already produced are a ready-made grounding
-  source for this, avoiding hallucination.
-- **Real-time threat intel:** call VirusTotal's API with the URL/domain and
-  display it side-by-side with the ML verdict; flag disagreements for human
-  review. Not implemented here due to no outbound internet access in this
-  environment + 1-day timeline — code is structured (`risk_factors` is a
-  list, easy to append a `"VirusTotal: X/90 engines flagged"` entry to).
+![Malicious URL](screenshots/3-malicious-url.png)
+
+---
+
+## AI Security Agent
+
+![AI Security Agent](screenshots/5-ai-agent.png)
+
+---
+
+## Threat Intelligence
+
+![Threat Intelligence](screenshots/6-threat-intelligence.png)
+
+---
+
+## Domain Intelligence
+
+![Domain Intelligence](screenshots/7-domain-age.png)
+
+---
+
+## Swagger API
+
+![Swagger API](screenshots/8-api-docs.png)
+
+---
+
+# 🔮 Future Improvements
+
+Future versions of the platform may include:
+
+- Browser Extension
+- Google Safe Browsing API Integration
+- Deep Learning Models
+- QR Code Security Analysis
+- Email Phishing Detection
+- Real-Time Threat Feed
+- User Authentication
+- Dashboard Analytics
+- Cloud Deployment
+
+---
+
+# 👨‍💻 Author
+
+**Muhammad Muazan Abdullah**
+
+
+AI • Machine Learning • FastAPI • Cybersecurity
+
+GitHub: https://github.com/muazan710
+
+---
+
+
+
+# ⭐ Acknowledgements
+
+Special thanks to the open-source community and the developers of:
+
+- FastAPI
+- Scikit-learn
+- XGBoost
+- VirusTotal
+- Python
+
+Their tools and libraries made this project possible.

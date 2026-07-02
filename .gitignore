@@ -1,0 +1,31 @@
+# Python
+__pycache__/
+*.py[cod]
+*.so
+
+# Virtual Environments
+venv/
+.venv/
+env/
+
+# Environment Variables
+.env
+backend/.env
+
+# IDE
+.vscode/
+.idea/
+
+# OS Files
+.DS_Store
+Thumbs.db
+
+# Python Cache
+.pytest_cache/
+.mypy_cache/
+
+# Logs
+*.log
+
+# Jupyter
+.ipynb_checkpoints/

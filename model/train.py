@@ -22,8 +22,9 @@ from xgboost import XGBClassifier
 
 from features import extract_feature_vector, FEATURE_COLUMNS
 
-DATA_PATH = "/home/claude/project/dataset/phishing_dataset.csv"
-MODEL_DIR = "/home/claude/project/model"
+PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+DATA_PATH = os.path.join(PROJECT_ROOT, "dataset", "phishing_dataset.csv")
+MODEL_DIR = os.path.dirname(__file__)
 
 
 def build_feature_table(df):
@@ -136,6 +137,9 @@ def main():
     plt.close(fig)
 
     # --- Save artifacts ---
+    for name, trained_model in trained_models.items():
+        joblib.dump(trained_model, os.path.join(MODEL_DIR, f"model_{name}.joblib"))
+
     joblib.dump(best_model, f"{MODEL_DIR}/best_model.joblib")
     joblib.dump(le, f"{MODEL_DIR}/label_encoder.joblib")
     with open(f"{MODEL_DIR}/metrics.json", "w") as f:
@@ -143,7 +147,7 @@ def main():
                    "feature_columns": FEATURE_COLUMNS,
                    "classes": list(le.classes_)}, f, indent=2)
 
-    print("\nSaved: best_model.joblib, label_encoder.joblib, metrics.json, plots (*.png)")
+    print("\nSaved: model_*.joblib, best_model.joblib, label_encoder.joblib, metrics.json, plots (*.png)")
 
 
 if __name__ == "__main__":

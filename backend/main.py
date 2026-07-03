@@ -252,7 +252,7 @@ class PredictResponse(BaseModel):
     domain_age: int | None = None
     domain_exists: bool = True
     rule_override: bool = False
-    model_results: Dict[str, ModelResult] = {}  # ✅ Har model ka alag result
+    model_results: Dict[str, ModelResult] = {}
     ai_agent: Optional[dict] = None
     threat_intel: Optional[dict] = None
 
@@ -538,38 +538,44 @@ def predict(req: PredictRequest):
     parsed = urlparse(url)
     domain = parsed.hostname or ''
     
-    # DNS Check
+    # ===== 1. DNS Check =====
     domain_exists = _domain_exists(domain) if domain else False
     print(f"🔍 Domain '{domain}' exists: {domain_exists}")
     
-    # Feature Extraction
+    # ===== 2. Feature Extraction =====
     feats = extract_features(url)
+    print(f"📊 Extracted features for: {url}")
     
-    # Domain Age
+    # ===== 3. Domain Age =====
     domain_age = None
     if domain_exists:
         domain_age = _domain_age_days(url, check_exists=True)
     feats["domain_age_days"] = domain_age
+    print(f"📅 Domain age: {domain_age} days" if domain_age else "📅 Domain age: N/A")
     
-    # Rule Engine
+    # ===== 4. Rule Engine =====
     is_malicious, rule_confidence, rule_reason = check_phishing_patterns(url, domain)
     rule_override = False
     
     if is_malicious:
         rule_override = True
-        print(f"🔥 RULE-BASED OVERRIDE: {rule_reason}")
+        print(f"🔥 RULE-BASED OVERRIDE: {rule_reason} ({rule_confidence:.2%})")
     
-    # Prepare Features for ML
+    # ===== 5. Prepare Features for ML =====
     if FEATURES_AVAILABLE and FEATURE_COLUMNS:
         try:
             X = pd.DataFrame([{k: feats.get(k, 0) for k in FEATURE_COLUMNS}])
-        except:
+            print(f"📊 X shape: {X.shape}")
+        except Exception as e:
+            print(f"⚠️ Feature DataFrame error: {e}")
             X = pd.DataFrame([{'url_length': len(url)}])
     else:
         X = pd.DataFrame([{'url_length': len(url)}])
     
-    # ✅ FIXED: Har model ka alag prediction & confidence
+    # ===== 6. ML Predictions =====
     model_results = {}
+    ml_predictions = []
+    ml_confidences = []
     
     for model_name, model in models.items():
         if model is not None:
@@ -577,6 +583,9 @@ def predict(req: PredictRequest):
                 proba = model.predict_proba(X)[0]
                 pred_idx = int(np.argmax(proba))
                 confidence = float(proba[pred_idx])
+                
+                # Debug: Print probabilities
+                print(f"  📊 {model_name} probs: {proba}")
                 
                 if hasattr(label_encoder, 'classes_'):
                     prediction = label_encoder.classes_[pred_idx]
@@ -587,42 +596,56 @@ def predict(req: PredictRequest):
                     "prediction": prediction,
                     "confidence": round(confidence, 4)
                 }
+                ml_predictions.append(prediction)
+                ml_confidences.append(confidence)
                 print(f"  ✅ {model_name}: {prediction} ({confidence:.2%})")
             except Exception as e:
                 print(f"  ❌ {model_name} failed: {e}")
                 model_results[model_name] = {"prediction": "safe", "confidence": 0.7}
+                ml_predictions.append("safe")
+                ml_confidences.append(0.7)
         else:
             model_results[model_name] = {"prediction": "safe", "confidence": 0.7}
+            ml_predictions.append("safe")
+            ml_confidences.append(0.7)
     
-    # ✅ FINAL DECISION
+    # ===== 7. Final Decision =====
     if rule_override:
+        # ✅ RULE OVERRIDE WINS!
         final_prediction = 'malicious'
         final_confidence = rule_confidence
+        print(f"🔥 FINAL: {final_prediction} (Rule Override, {final_confidence:.2%})")
     else:
-        # Majority voting
-        predictions = [m["prediction"] for m in model_results.values()]
-        final_prediction = max(set(predictions), key=predictions.count)
-        # Average confidence of agreeing models
-        agreeing = [m["confidence"] for m in model_results.values() if m["prediction"] == final_prediction]
-        final_confidence = sum(agreeing) / len(agreeing) if agreeing else 0.7
+        # Majority voting from ML models
+        vote_counts = {}
+        for pred in ml_predictions:
+            vote_counts[pred] = vote_counts.get(pred, 0) + 1
+        
+        final_prediction = max(vote_counts, key=vote_counts.get)
+        
+        agreeing_confs = [ml_confidences[i] for i, p in enumerate(ml_predictions) if p == final_prediction]
+        final_confidence = sum(agreeing_confs) / len(agreeing_confs) if agreeing_confs else 0.7
+        
+        print(f"📊 FINAL: {final_prediction} (ML Voting, {final_confidence:.2%})")
     
-    # Build response
+    # ===== 8. Build Risk Factors =====
     risk_factors = _build_risk_factors(feats, domain_exists, rule_reason if rule_override else "")
     risk_level = _risk_level(final_prediction, final_confidence)
     
+    # ===== 9. Feature Summary =====
     feature_summary = {k: feats.get(k) for k in FEATURE_COLUMNS if k in feats} if FEATURE_COLUMNS else feats
     feature_summary["domain_exists"] = domain_exists
     feature_summary["domain_age_days"] = domain_age
     feature_summary["rule_override"] = rule_override
     
-    # AI Agent
+    # ===== 10. AI Agent =====
     ai_agent = None
     if req.use_ai_agent:
         ai_agent = generate_ai_agent_explanation(
             url, risk_factors, final_prediction, domain_age, domain_exists, rule_override
         )
     
-    # Threat Intelligence
+    # ===== 11. Threat Intelligence =====
     threat_intel = None
     if req.use_threat_intel and domain and domain_exists:
         threat_intel = get_threat_intelligence(domain)
@@ -633,6 +656,7 @@ def predict(req: PredictRequest):
             "comparison": "❌ Domain not found"
         }
     
+    # ===== 12. Response =====
     return PredictResponse(
         url=url,
         model_name=req.model_name,
@@ -644,7 +668,7 @@ def predict(req: PredictRequest):
         domain_age=domain_age,
         domain_exists=domain_exists,
         rule_override=rule_override,
-        model_results=model_results,  # ✅ NEW: Har model ka result
+        model_results=model_results,
         ai_agent=ai_agent,
         threat_intel=threat_intel
     )

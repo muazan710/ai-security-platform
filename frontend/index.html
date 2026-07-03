@@ -122,6 +122,16 @@
   .badge.suspicious { background: rgba(245,158,11,0.15); color: var(--suspicious); border: 1px solid var(--suspicious); }
   .badge.malicious { background: rgba(239,68,68,0.15); color: var(--malicious); border: 1px solid var(--malicious); }
 
+  .badge-override {
+    background: rgba(245,158,11,0.2);
+    color: var(--suspicious);
+    border: 1px solid var(--suspicious);
+    font-size: 10px;
+    padding: 2px 8px;
+    border-radius: 999px;
+    margin-left: 8px;
+  }
+
   .conf-bar-bg { background: #1f2937; border-radius: 8px; height: 8px; overflow: hidden; margin: 8px 0; }
   .conf-bar-fill { height: 100%; border-radius: 8px; transition: width 0.6s; }
   .conf-label { display: flex; justify-content: space-between; font-size: 12px; color: var(--muted); }
@@ -201,6 +211,11 @@
   .consensus.agreed { border-color: var(--safe); color: var(--safe); }
   .consensus.partial { border-color: var(--suspicious); color: var(--suspicious); }
   .consensus.disagreed { border-color: var(--malicious); color: var(--malicious); }
+  .consensus.override { 
+    border-color: var(--suspicious); 
+    color: var(--suspicious);
+    background: rgba(245,158,11,0.1);
+  }
 
   .loading { color: var(--muted); font-size: 14px; display: none; }
   .error { 
@@ -256,7 +271,6 @@
         <input type="checkbox" id="threatIntelCheck" checked />
         🛡️ Threat Intelligence
       </label>
-      <!-- ✅ MODEL SELECTION DROPDOWN REMOVED -->
     </div>
 
     <div class="examples">
@@ -299,7 +313,7 @@
     </details>
   </div>
 
-  <footer>Backend: FastAPI · AI Agent · Threat Intelligence ·</footer>
+  <footer>Backend: FastAPI · AI Agent · Threat Intelligence · </footer>
 </div>
 
 <script>
@@ -337,7 +351,6 @@ async function checkUrl() {
   let domainNotFound = false;
 
   try {
-    // ✅ Sab 3 models automatically call honge
     const promises = MODELS.map(async (model) => {
       try {
         const res = await fetch(`${API_BASE}/predict`, {
@@ -400,9 +413,16 @@ async function checkUrl() {
 function renderResults(results, url) {
   document.getElementById("resultUrl").textContent = "🔗 " + url;
   
+  // ✅ FIRST: First result se final prediction lein
   const firstResult = results[0];
-  const domainStatus = document.getElementById("domainStatus");
   
+  // ✅ Use final prediction from backend (not model_results)
+  const finalPrediction = firstResult.prediction;
+  const finalConfidence = firstResult.confidence;
+  const ruleOverride = firstResult.rule_override;
+  
+  // ===== DOMAIN STATUS =====
+  const domainStatus = document.getElementById("domainStatus");
   if (firstResult && firstResult.domain_exists !== undefined) {
     if (firstResult.domain_exists) {
       domainStatus.className = "domain-status exists";
@@ -415,6 +435,7 @@ function renderResults(results, url) {
     domainStatus.style.display = "none";
   }
   
+  // ===== AI AGENT =====
   const aiBox = document.getElementById("aiAgentBox");
   if (firstResult && firstResult.ai_agent) {
     aiBox.style.display = "block";
@@ -426,6 +447,7 @@ function renderResults(results, url) {
     aiBox.style.display = "none";
   }
 
+  // ===== THREAT INTELLIGENCE =====
   const intelBox = document.getElementById("threatIntelBox");
   if (firstResult && firstResult.threat_intel) {
     intelBox.style.display = "block";
@@ -445,10 +467,11 @@ function renderResults(results, url) {
     intelBox.style.display = "none";
   }
 
+  // ===== MODEL CARDS =====
   const grid = document.getElementById("comparisonGrid");
   grid.innerHTML = "";
 
-  // ✅ Use model_results if available (new backend)
+  // Use model_results for individual model cards
   if (firstResult && firstResult.model_results) {
     const modelResults = firstResult.model_results;
     const modelNames = Object.keys(modelResults);
@@ -461,8 +484,11 @@ function renderResults(results, url) {
       const color = data.prediction === "safe" ? "var(--safe)" :
                     data.prediction === "suspicious" ? "var(--suspicious)" : "var(--malicious)";
       
+      // ✅ Show override badge if rule override is active
+      const overrideBadge = ruleOverride ? '<span class="badge-override">⚡ Overridden</span>' : '';
+      
       card.innerHTML = `
-        <h3>${modelName}</h3>
+        <h3>${modelName} ${overrideBadge}</h3>
         <div class="badge ${data.prediction}">${data.prediction.toUpperCase()}</div>
         <div class="conf-label">
           <span>Confidence</span>
@@ -478,7 +504,7 @@ function renderResults(results, url) {
       grid.appendChild(card);
     });
   } else {
-    // ✅ Fallback: Old format
+    // Fallback: Old format
     const getColor = (pred) => {
       if (pred === "safe") return "var(--safe)";
       if (pred === "suspicious") return "var(--suspicious)";
@@ -509,33 +535,47 @@ function renderResults(results, url) {
     });
   }
 
-  // ✅ Consensus
-  let predictions = [];
-  if (firstResult && firstResult.model_results) {
-    const modelResults = firstResult.model_results;
-    predictions = Object.values(modelResults).map(m => m.prediction);
-  } else {
-    predictions = results.map(r => r.prediction);
-  }
-  
-  const unique = [...new Set(predictions)];
+  // ===== ✅ CONSENSUS: Use FINAL PREDICTION from backend =====
   const consensusEl = document.getElementById("consensus");
   
-  if (unique.length === 1) {
-    consensusEl.className = "consensus agreed";
-    consensusEl.innerHTML = `✅ ALL MODELS AGREE: <strong>${unique[0].toUpperCase()}</strong>`;
-  } else if (unique.length === 2) {
-    consensusEl.className = "consensus partial";
-    const counts = {};
-    predictions.forEach(p => counts[p] = (counts[p] || 0) + 1);
-    const majority = Object.entries(counts).sort((a,b) => b[1] - a[1])[0];
-    consensusEl.innerHTML = `⚠️ PARTIAL: ${majority[0].toUpperCase()} (${majority[1]}/3) — Models disagree`;
+  if (ruleOverride) {
+    // ✅ Rule override active hai toh final prediction show karein
+    consensusEl.className = "consensus override";
+    const emoji = finalPrediction === 'malicious' ? '🔴' : '🟡';
+    consensusEl.innerHTML = `
+      ${emoji} <strong>${finalPrediction.toUpperCase()}</strong> 
+      <span style="font-weight:400;font-size:13px;display:block;margin-top:4px;">
+        ⚠️ Rule-Based Override Active — ML models overridden by security rules
+      </span>
+    `;
   } else {
-    consensusEl.className = "consensus disagreed";
-    consensusEl.innerHTML = `❌ NO CONSENSUS — Manual review recommended`;
+    // Normal consensus from models
+    let predictions = [];
+    if (firstResult && firstResult.model_results) {
+      const modelResults = firstResult.model_results;
+      predictions = Object.values(modelResults).map(m => m.prediction);
+    } else {
+      predictions = results.map(r => r.prediction);
+    }
+    
+    const unique = [...new Set(predictions)];
+    
+    if (unique.length === 1) {
+      consensusEl.className = "consensus agreed";
+      consensusEl.innerHTML = `✅ ALL MODELS AGREE: <strong>${unique[0].toUpperCase()}</strong>`;
+    } else if (unique.length === 2) {
+      consensusEl.className = "consensus partial";
+      const counts = {};
+      predictions.forEach(p => counts[p] = (counts[p] || 0) + 1);
+      const majority = Object.entries(counts).sort((a,b) => b[1] - a[1])[0];
+      consensusEl.innerHTML = `⚠️ PARTIAL: ${majority[0].toUpperCase()} (${majority[1]}/3) — Models disagree`;
+    } else {
+      consensusEl.className = "consensus disagreed";
+      consensusEl.innerHTML = `❌ NO CONSENSUS — Manual review recommended`;
+    }
   }
 
-  // Features
+  // ===== FEATURES =====
   if (firstResult && firstResult.feature_summary) {
     const grid2 = document.getElementById("featuresGrid");
     grid2.innerHTML = "";

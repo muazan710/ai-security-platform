@@ -4,19 +4,70 @@
       "accuracy": 0.9673,
       "precision_macro": 0.9682,
       "recall_macro": 0.932,
-      "f1_macro": 0.9472
+      "f1_macro": 0.9472,
+      "confusion_matrix": [
+        [
+          120,
+          0,
+          0
+        ],
+        [
+          0,
+          113,
+          1
+        ],
+        [
+          0,
+          8,
+          33
+        ]
+      ]
     },
     "RandomForest": {
-      "accuracy": 0.9745,
-      "precision_macro": 0.9561,
-      "recall_macro": 0.9691,
-      "f1_macro": 0.9622
+      "accuracy": 0.9818,
+      "precision_macro": 0.9667,
+      "recall_macro": 0.9802,
+      "f1_macro": 0.973,
+      "confusion_matrix": [
+        [
+          120,
+          0,
+          0
+        ],
+        [
+          0,
+          110,
+          4
+        ],
+        [
+          0,
+          1,
+          40
+        ]
+      ]
     },
     "XGBoost": {
       "accuracy": 0.9745,
       "precision_macro": 0.9561,
       "recall_macro": 0.9691,
-      "f1_macro": 0.9622
+      "f1_macro": 0.9622,
+      "confusion_matrix": [
+        [
+          120,
+          0,
+          0
+        ],
+        [
+          0,
+          109,
+          5
+        ],
+        [
+          0,
+          2,
+          39
+        ]
+      ]
     }
   },
   "best_model": "RandomForest",

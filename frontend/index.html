@@ -256,12 +256,7 @@
         <input type="checkbox" id="threatIntelCheck" checked />
         🛡️ Threat Intelligence
       </label>
-      <span style="color:var(--muted);font-size:12px;margin-left:auto;">Select model below</span>
-      <select id="modelSelect" style="background:#0d1420;color:var(--text);border:1px solid var(--border);padding:6px 12px;border-radius:6px;">
-        <option value="RandomForest">Random Forest</option>
-        <option value="LogisticRegression">Logistic Regression</option>
-        <option value="XGBoost">XGBoost</option>
-      </select>
+      <!-- ✅ MODEL SELECTION DROPDOWN REMOVED -->
     </div>
 
     <div class="examples">
@@ -304,7 +299,7 @@
     </details>
   </div>
 
-  <footer>Backend: FastAPI · AI Agent · Threat Intelligence · v2.0</footer>
+  <footer>Backend: FastAPI · AI Agent · Threat Intelligence ·</footer>
 </div>
 
 <script>
@@ -318,7 +313,6 @@ function fillExample(url) {
 
 async function checkUrl() {
   const url = document.getElementById("urlInput").value.trim();
-  const modelName = document.getElementById("modelSelect").value;
   const useAI = document.getElementById("aiAgentCheck").checked;
   const useIntel = document.getElementById("threatIntelCheck").checked;
   
@@ -343,6 +337,7 @@ async function checkUrl() {
   let domainNotFound = false;
 
   try {
+    // ✅ Sab 3 models automatically call honge
     const promises = MODELS.map(async (model) => {
       try {
         const res = await fetch(`${API_BASE}/predict`, {
@@ -356,7 +351,6 @@ async function checkUrl() {
           })
         });
         
-        // Handle 404 specifically
         if (res.status === 404) {
           domainNotFound = true;
           const errorData = await res.json().catch(() => ({}));
@@ -379,7 +373,6 @@ async function checkUrl() {
       if (data) results.push(data);
     });
 
-    // If domain not found, show error
     if (domainNotFound) {
       errorEl.textContent = "❌ Domain does not exist. Please check the URL.";
       errorEl.style.display = "block";
@@ -455,48 +448,76 @@ function renderResults(results, url) {
   const grid = document.getElementById("comparisonGrid");
   grid.innerHTML = "";
 
-  const getColor = (pred) => {
-    if (pred === "safe") return "var(--safe)";
-    if (pred === "suspicious") return "var(--suspicious)";
-    return "var(--malicious)";
-  };
-
-  results.forEach((data) => {
-    const card = document.createElement("div");
-    card.className = "model-card";
-    const pct = Math.round(data.confidence * 100);
-    const color = getColor(data.prediction);
+  // ✅ Use model_results if available (new backend)
+  if (firstResult && firstResult.model_results) {
+    const modelResults = firstResult.model_results;
+    const modelNames = Object.keys(modelResults);
     
-    card.innerHTML = `
-      <h3>${data.model_name}</h3>
-      <div class="badge ${data.prediction}">${data.prediction.toUpperCase()} · ${data.risk_level} RISK</div>
-      <div class="conf-label">
-        <span>Confidence</span>
-        <span>${pct}%</span>
-      </div>
-      <div class="conf-bar-bg">
-        <div class="conf-bar-fill" style="width:${pct}%; background:${color};"></div>
-      </div>
-      <div class="domain-age">
-        🌐 Domain Age: <strong>${data.domain_age ? data.domain_age + ' days' : 'N/A'}</strong>
-      </div>
-    `;
-    grid.appendChild(card);
-  });
+    modelNames.forEach((modelName) => {
+      const data = modelResults[modelName];
+      const card = document.createElement("div");
+      card.className = "model-card";
+      const pct = Math.round(data.confidence * 100);
+      const color = data.prediction === "safe" ? "var(--safe)" :
+                    data.prediction === "suspicious" ? "var(--suspicious)" : "var(--malicious)";
+      
+      card.innerHTML = `
+        <h3>${modelName}</h3>
+        <div class="badge ${data.prediction}">${data.prediction.toUpperCase()}</div>
+        <div class="conf-label">
+          <span>Confidence</span>
+          <span>${pct}%</span>
+        </div>
+        <div class="conf-bar-bg">
+          <div class="conf-bar-fill" style="width:${pct}%; background:${color};"></div>
+        </div>
+        <div class="domain-age">
+          🌐 Domain Age: <strong>${firstResult.domain_age ? firstResult.domain_age + ' days' : 'N/A'}</strong>
+        </div>
+      `;
+      grid.appendChild(card);
+    });
+  } else {
+    // ✅ Fallback: Old format
+    const getColor = (pred) => {
+      if (pred === "safe") return "var(--safe)";
+      if (pred === "suspicious") return "var(--suspicious)";
+      return "var(--malicious)";
+    };
 
-  if (firstResult && firstResult.feature_summary) {
-    const grid2 = document.getElementById("featuresGrid");
-    grid2.innerHTML = "";
-    Object.entries(firstResult.feature_summary).forEach(([k, v]) => {
-      if (k !== "domain_age_days" && k !== "domain_exists" && k !== "rule_override") {
-        const div = document.createElement("div");
-        div.innerHTML = `${k.replace(/_/g, " ")}: <span>${v}</span>`;
-        grid2.appendChild(div);
-      }
+    results.forEach((data) => {
+      const card = document.createElement("div");
+      card.className = "model-card";
+      const pct = Math.round(data.confidence * 100);
+      const color = getColor(data.prediction);
+      
+      card.innerHTML = `
+        <h3>${data.model_name}</h3>
+        <div class="badge ${data.prediction}">${data.prediction.toUpperCase()} · ${data.risk_level} RISK</div>
+        <div class="conf-label">
+          <span>Confidence</span>
+          <span>${pct}%</span>
+        </div>
+        <div class="conf-bar-bg">
+          <div class="conf-bar-fill" style="width:${pct}%; background:${color};"></div>
+        </div>
+        <div class="domain-age">
+          🌐 Domain Age: <strong>${data.domain_age ? data.domain_age + ' days' : 'N/A'}</strong>
+        </div>
+      `;
+      grid.appendChild(card);
     });
   }
 
-  const predictions = results.map(r => r.prediction);
+  // ✅ Consensus
+  let predictions = [];
+  if (firstResult && firstResult.model_results) {
+    const modelResults = firstResult.model_results;
+    predictions = Object.values(modelResults).map(m => m.prediction);
+  } else {
+    predictions = results.map(r => r.prediction);
+  }
+  
   const unique = [...new Set(predictions)];
   const consensusEl = document.getElementById("consensus");
   
@@ -512,6 +533,19 @@ function renderResults(results, url) {
   } else {
     consensusEl.className = "consensus disagreed";
     consensusEl.innerHTML = `❌ NO CONSENSUS — Manual review recommended`;
+  }
+
+  // Features
+  if (firstResult && firstResult.feature_summary) {
+    const grid2 = document.getElementById("featuresGrid");
+    grid2.innerHTML = "";
+    Object.entries(firstResult.feature_summary).forEach(([k, v]) => {
+      if (k !== "domain_age_days" && k !== "domain_exists" && k !== "rule_override") {
+        const div = document.createElement("div");
+        div.innerHTML = `${k.replace(/_/g, " ")}: <span>${v}</span>`;
+        grid2.appendChild(div);
+      }
+    });
   }
 
   document.getElementById("resultPanel").style.display = "block";

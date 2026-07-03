@@ -190,6 +190,16 @@ def extract_all_features_for_model(url: str) -> dict:
     return model_features
 
 
+# ✅ NEW: Function for train.py
+def extract_feature_vector(url: str) -> dict:
+    """
+    Extract feature vector for model input.
+    Returns only the feature columns used by the model.
+    """
+    features = extract_features(url)
+    return {k: features.get(k, 0) for k in FEATURE_COLUMNS}
+
+
 # Test function
 if __name__ == "__main__":
     # Test URLs
@@ -209,3 +219,12 @@ if __name__ == "__main__":
             if not key.startswith('_'):
                 print(f"  {key}: {value}")
         print("-" * 40)
+    
+    # ✅ Test extract_feature_vector
+    print("\n" + "=" * 60)
+    print("Testing extract_feature_vector():")
+    print("=" * 60)
+    for url in test_urls[:2]:
+        vector = extract_feature_vector(url)
+        print(f"\nURL: {url}")
+        print(f"Feature Vector: {vector}")

@@ -203,7 +203,16 @@
   .consensus.disagreed { border-color: var(--malicious); color: var(--malicious); }
 
   .loading { color: var(--muted); font-size: 14px; display: none; }
-  .error { color: var(--malicious); font-size: 14px; display: none; }
+  .error { 
+    color: var(--malicious); 
+    font-size: 14px; 
+    display: none; 
+    padding: 12px;
+    background: rgba(239,68,68,0.1);
+    border-radius: 8px;
+    border: 1px solid var(--malicious);
+    margin-top: 10px;
+  }
   .result { display: none; }
 
   .features-grid {
@@ -295,7 +304,7 @@
     </details>
   </div>
 
-  <footer>Backend: FastAPI · AI Agent · Threat Intelligence · </footer>
+  <footer>Backend: FastAPI · AI Agent · Threat Intelligence · v2.0</footer>
 </div>
 
 <script>
@@ -331,6 +340,7 @@ async function checkUrl() {
 
   const results = [];
   let errors = [];
+  let domainNotFound = false;
 
   try {
     const promises = MODELS.map(async (model) => {
@@ -345,6 +355,13 @@ async function checkUrl() {
             use_threat_intel: useIntel
           })
         });
+        
+        // Handle 404 specifically
+        if (res.status === 404) {
+          domainNotFound = true;
+          const errorData = await res.json().catch(() => ({}));
+          throw new Error(errorData.detail || "Domain does not exist");
+        }
         
         if (!res.ok) {
           const errorData = await res.json().catch(() => ({}));
@@ -362,13 +379,24 @@ async function checkUrl() {
       if (data) results.push(data);
     });
 
+    // If domain not found, show error
+    if (domainNotFound) {
+      errorEl.textContent = "❌ Domain does not exist. Please check the URL.";
+      errorEl.style.display = "block";
+      loadingEl.style.display = "none";
+      document.getElementById("checkBtn").disabled = false;
+      return;
+    }
+
     if (results.length === 0) {
-      throw new Error("All models failed. " + errors.join(" | "));
+      errorEl.textContent = "❌ All models failed. " + errors.join(" | ");
+      errorEl.style.display = "block";
+      return;
     }
 
     renderResults(results, url);
   } catch (e) {
-    errorEl.textContent = "Error: " + e.message;
+    errorEl.textContent = "❌ Error: " + e.message;
     errorEl.style.display = "block";
   } finally {
     loadingEl.style.display = "none";

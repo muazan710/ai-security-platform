@@ -3,11 +3,8 @@ Feature extraction module for URL analysis.
 Extracts various features from URLs for ML model prediction.
 """
 import re
-import tldextract
-from urllib.parse import urlparse
-from urllib.parse import urlparse
 import math
-import socket
+from urllib.parse import urlparse
 
 # List of known URL shorteners
 URL_SHORTENERS = [
@@ -105,12 +102,6 @@ def _is_ip_address(host: str) -> bool:
     ipv4_pattern = r'^(\d{1,3}\.){3}\d{1,3}$'
     if re.match(ipv4_pattern, host):
         return True
-    # IPv6 pattern
-    try:
-        socket.inet_pton(socket.AF_INET6, host)
-        return True
-    except:
-        pass
     return False
 
 
@@ -118,15 +109,10 @@ def _get_tld(host: str) -> str:
     """Extract TLD from host"""
     if not host:
         return ''
-    try:
-        extracted = tldextract.extract(host)
-        return extracted.suffix or ''
-    except:
-        # Fallback
-        parts = host.split('.')
-        if len(parts) > 1:
-            return parts[-1] or ''
-        return ''
+    parts = host.split('.')
+    if len(parts) > 1:
+        return parts[-1] or ''
+    return ''
 
 
 def _count_subdomains(host: str) -> int:

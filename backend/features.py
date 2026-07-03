@@ -31,19 +31,27 @@ SUSPICIOUS_TLDS = [
     '.stream', '.gq', '.click', '.link', '.men', '.loan'
 ]
 
-# Feature columns used by the model
+# ============================================
+# ✅ COMPLETE FEATURE COLUMNS (17 features)
+# ============================================
 FEATURE_COLUMNS = [
     'url_length',
-    'has_https',
-    'is_ip_url',
-    'tld_suspicious',
-    'subdomain_count',
-    'num_suspicious_keywords',
-    'is_shortened_url',
-    'has_at_symbol',
-    'entropy',
+    'num_dots',
+    'num_hyphens',
     'num_special_chars',
-    'tld',
+    'has_https',
+    'has_at_symbol',
+    'digit_ratio',
+    'entropy',
+    'num_suspicious_keywords',
+    'path_length',
+    'subdomain_count',
+    'domain_length',
+    'tld_suspicious',
+    'is_ip_url',
+    'is_shortened_url',
+    'has_port',
+    'redirect_count_proxy',
 ]
 
 
@@ -60,36 +68,74 @@ def extract_features(url: str) -> dict:
     parsed = urlparse(url)
     host = parsed.hostname or ''
     path = parsed.path or ''
-    query = parsed.query or ''
     
-    # Basic features
-    features = {
-        'url_length': len(url),
-        'has_https': url.startswith('https://'),
-        'is_ip_url': _is_ip_address(host),
-        'tld': _get_tld(host),
-        'tld_suspicious': False,
-        'subdomain_count': _count_subdomains(host),
-        'num_suspicious_keywords': 0,
-        '_keyword_hits': [],
-        'is_shortened_url': _is_shortened(url),
-        'has_at_symbol': '@' in url,
-        'entropy': _calculate_entropy(host),
-        'num_special_chars': _count_special_chars(url),
-        'domain_age_days': None,
-    }
+    # ===== URL Features =====
+    url_length = len(url)
+    num_dots = url.count('.')
+    num_hyphens = url.count('-')
+    num_special_chars = len(re.findall(r'[^a-zA-Z0-9]', url))
+    has_https = 1 if url.startswith('https://') else 0
+    has_at_symbol = 1 if '@' in url else 0
     
-    # Check TLD suspiciousness
-    if features['tld'] in SUSPICIOUS_TLDS:
-        features['tld_suspicious'] = True
+    # ===== Digit Ratio =====
+    digit_count = sum(c.isdigit() for c in url)
+    digit_ratio = digit_count / url_length if url_length > 0 else 0
     
-    # Check for suspicious keywords
+    # ===== Entropy =====
+    entropy = _calculate_entropy(host)
+    
+    # ===== Suspicious Keywords =====
     keyword_hits = []
     for keyword in SUSPICIOUS_KEYWORDS:
         if keyword in url.lower():
             keyword_hits.append(keyword)
-    features['_keyword_hits'] = keyword_hits
-    features['num_suspicious_keywords'] = len(keyword_hits)
+    num_suspicious_keywords = len(keyword_hits)
+    
+    # ===== Path Features =====
+    path_length = len(path)
+    
+    # ===== Domain Features =====
+    subdomain_count = _count_subdomains(host)
+    domain_length = len(host)
+    tld = _get_tld(host)
+    tld_suspicious = 1 if tld in SUSPICIOUS_TLDS else 0
+    is_ip_url = 1 if _is_ip_address(host) else 0
+    
+    # ===== Shortened URL =====
+    is_shortened_url = 1 if _is_shortened(url) else 0
+    
+    # ===== Port Detection =====
+    has_port = 1 if ':' in host else 0
+    
+    # ===== Redirect Count (Proxy) =====
+    redirect_count_proxy = _count_redirects(url)
+    
+    # ===== Additional =====
+    domain_age_days = None
+    
+    features = {
+        'url_length': url_length,
+        'num_dots': num_dots,
+        'num_hyphens': num_hyphens,
+        'num_special_chars': num_special_chars,
+        'has_https': has_https,
+        'has_at_symbol': has_at_symbol,
+        'digit_ratio': digit_ratio,
+        'entropy': entropy,
+        'num_suspicious_keywords': num_suspicious_keywords,
+        'path_length': path_length,
+        'subdomain_count': subdomain_count,
+        'domain_length': domain_length,
+        'tld_suspicious': tld_suspicious,
+        'is_ip_url': is_ip_url,
+        'is_shortened_url': is_shortened_url,
+        'has_port': has_port,
+        'redirect_count_proxy': redirect_count_proxy,
+        # Extra fields for explainability
+        '_keyword_hits': keyword_hits,
+        'tld': tld,
+        'domain_age_days': domain_age_days,
+    }
     
     return features
 
@@ -98,7 +144,6 @@ def _is_ip_address(host: str) -> bool:
     """Check if host is an IP address"""
     if not host:
         return False
-    # IPv4 pattern
     ipv4_pattern = r'^(\d{1,3}\.){3}\d{1,3}$'
     if re.match(ipv4_pattern, host):
         return True
@@ -119,14 +164,11 @@ def _count_subdomains(host: str) -> int:
     """Count number of subdomains in host"""
     if not host:
         return 0
-    # Remove www prefix if present
     if host.startswith('www.'):
         host = host[4:]
     parts = host.split('.')
-    # Remove TLD (last part)
     if len(parts) >= 2:
         parts = parts[:-1]
-    # The last part is the domain name, rest are subdomains
     if len(parts) >= 2:
         return len(parts) - 1
     return 0
@@ -147,12 +189,10 @@ def _calculate_entropy(host: str) -> float:
     if not host:
         return 0.0
     
-    # Remove common prefixes
     host_clean = host
     if host_clean.startswith('www.'):
         host_clean = host_clean[4:]
     
-    # Calculate character frequency
     freq = {}
     for char in host_clean:
         freq[char] = freq.get(char, 0) + 1
@@ -161,7 +201,6 @@ def _calculate_entropy(host: str) -> float:
     if length == 0:
         return 0.0
     
-    # Shannon entropy
     entropy = 0.0
     for count in freq.values():
         p = count / length
@@ -173,6 +212,25 @@ def _calculate_entropy(host: str) -> float:
 def _count_special_chars(url: str) -> int:
     """Count number of special characters in URL (non-alphanumeric)"""
     return len(re.findall(r'[^a-zA-Z0-9]', url))
+
+
+def _count_redirects(url: str) -> int:
+    """
+    Count redirects using proxy detection.
+    Returns 0 (no redirects detected by default).
+    """
+    # Simple proxy/redirect detection based on URL patterns
+    redirect_patterns = [
+        'redirect', 'redir', 'go/', 'click',
+        'link/', 'goto', 'out.', 'tracking'
+    ]
+    count = 0
+    url_lower = url.lower()
+    for pattern in redirect_patterns:
+        if pattern in url_lower:
+            count += 1
+    # Cap at 3
+    return min(count, 3)
 
 
 def extract_all_features_for_model(url: str) -> dict:
@@ -190,7 +248,6 @@ def extract_all_features_for_model(url: str) -> dict:
     return model_features
 
 
-# ✅ NEW: Function for train.py
 def extract_feature_vector(url: str) -> dict:
     """
     Extract feature vector for model input.
@@ -202,7 +259,6 @@ def extract_feature_vector(url: str) -> dict:
 
 # Test function
 if __name__ == "__main__":
-    # Test URLs
     test_urls = [
         "https://www.google.com",
         "https://secure-paypal-login-example.com",
@@ -211,20 +267,23 @@ if __name__ == "__main__":
         "https://newstartup-launch.io",
     ]
     
+    print("=" * 60)
+    print("🔍 Testing Feature Extraction")
+    print("=" * 60)
+    
     for url in test_urls:
         features = extract_features(url)
-        print(f"\nURL: {url}")
-        print("Features:")
-        for key, value in features.items():
-            if not key.startswith('_'):
-                print(f"  {key}: {value}")
+        print(f"\n📌 URL: {url}")
         print("-" * 40)
+        for key in FEATURE_COLUMNS:
+            value = features.get(key, 'N/A')
+            print(f"  {key}: {value}")
     
-    # ✅ Test extract_feature_vector
     print("\n" + "=" * 60)
-    print("Testing extract_feature_vector():")
+    print("📊 Testing extract_feature_vector()")
     print("=" * 60)
-    for url in test_urls[:2]:
+    
+    for url in test_urls[:3]:
         vector = extract_feature_vector(url)
-        print(f"\nURL: {url}")
-        print(f"Feature Vector: {vector}")
+        print(f"\n📌 URL: {url}")
+        print(f"  Features: {vector}")

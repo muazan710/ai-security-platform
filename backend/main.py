@@ -55,36 +55,54 @@ except ImportError:
     print("⚠️ python-whois not installed")
 
 # ============================================
-# FEATURES
+# FEATURES - DYNAMIC LOADING WITH FALLBACK
 # ============================================
+FEATURE_COLUMNS = None
+extract_features = None
+
 try:
-    from features import extract_features, FEATURE_COLUMNS
+    from features import extract_features as feat_extract, FEATURE_COLUMNS as feat_cols
+    extract_features = feat_extract
+    FEATURE_COLUMNS = feat_cols
     FEATURES_AVAILABLE = True
     print("✅ Features loaded from features.py")
+    print(f"📋 Feature columns: {FEATURE_COLUMNS}")
 except ImportError:
     FEATURES_AVAILABLE = False
     print("⚠️ features.py not found, using fallback")
+    
     def extract_features(url):
         parsed = urlparse(url)
         host = parsed.hostname or ''
         return {
             'url_length': len(url),
-            'has_https': url.startswith('https://'),
-            'is_ip_url': False,
-            'tld': host.split('.')[-1] if '.' in host else '',
-            'tld_suspicious': False,
-            'subdomain_count': len(host.split('.')) - 2 if len(host.split('.')) > 2 else 0,
-            'num_suspicious_keywords': 0,
-            '_keyword_hits': [],
-            'is_shortened_url': False,
-            'has_at_symbol': '@' in url,
-            'entropy': 0,
+            'num_dots': url.count('.'),
+            'num_hyphens': url.count('-'),
             'num_special_chars': len(re.findall(r'[^a-zA-Z0-9]', url)),
+            'has_https': 1 if url.startswith('https://') else 0,
+            'has_at_symbol': 1 if '@' in url else 0,
+            'digit_ratio': sum(c.isdigit() for c in url) / len(url) if len(url) > 0 else 0,
+            'entropy': 0,
+            'num_suspicious_keywords': 0,
+            'path_length': len(parsed.path),
+            'subdomain_count': len(host.split('.')) - 2 if len(host.split('.')) > 2 else 0,
+            'domain_length': len(host),
+            'tld_suspicious': 0,
+            'is_ip_url': 1 if False else 0,
+            'is_shortened_url': 0,
+            'has_port': 1 if ':' in host else 0,
+            'redirect_count_proxy': 0,
+            '_keyword_hits': [],
+            'tld': host.split('.')[-1] if '.' in host else '',
+            'domain_age_days': None,
         }
+    
     FEATURE_COLUMNS = [
-        'url_length', 'has_https', 'is_ip_url', 'tld_suspicious',
-        'subdomain_count', 'num_suspicious_keywords', 'is_shortened_url',
-        'has_at_symbol', 'entropy', 'num_special_chars'
+        'url_length', 'num_dots', 'num_hyphens', 'num_special_chars',
+        'has_https', 'has_at_symbol', 'digit_ratio', 'entropy',
+        'num_suspicious_keywords', 'path_length', 'subdomain_count',
+        'domain_length', 'tld_suspicious', 'is_ip_url', 'is_shortened_url',
+        'has_port', 'redirect_count_proxy'
     ]
 
 # ============================================
@@ -149,6 +167,28 @@ if label_encoder is None:
         classes_ = ['safe', 'suspicious', 'malicious']
     label_encoder = DummyLabelEncoder()
     print("⚠️ Using dummy label encoder")
+
+# ============================================
+# ✅ LOAD TRAINED FEATURE COLUMNS FROM METRICS
+# ============================================
+TRAINED_FEATURES = None
+try:
+    metrics_path = os.path.join(MODEL_DIR, "metrics.json")
+    if os.path.exists(metrics_path):
+        with open(metrics_path, 'r') as f:
+            metrics_data = json.load(f)
+        TRAINED_FEATURES = metrics_data.get('feature_columns')
+        if TRAINED_FEATURES:
+            print(f"✅ Loaded trained feature columns: {len(TRAINED_FEATURES)} features")
+        else:
+            print("⚠️ No feature_columns found in metrics.json")
+except Exception as e:
+    print(f"⚠️ Could not load metrics.json: {e}")
+
+# If trained features available, use them
+if TRAINED_FEATURES:
+    FEATURE_COLUMNS = TRAINED_FEATURES
+    print(f"📋 Using trained feature columns: {FEATURE_COLUMNS}")
 
 # ============================================
 # SAFE DOMAINS
@@ -523,7 +563,8 @@ def health():
         "status": "ok",
         "version": "2.0.0",
         "apis": {"virustotal": bool(VIRUSTOTAL_API_KEY)},
-        "available_models": list(models.keys())
+        "available_models": list(models.keys()),
+        "feature_columns": FEATURE_COLUMNS
     }
 
 @app.post("/predict")
@@ -562,10 +603,15 @@ def predict(req: PredictRequest):
         print(f"🔥 RULE-BASED OVERRIDE: {rule_reason} ({rule_confidence:.2%})")
     
     # ===== 5. Prepare Features for ML =====
-    if FEATURES_AVAILABLE and FEATURE_COLUMNS:
+    if FEATURE_COLUMNS:
         try:
-            X = pd.DataFrame([{k: feats.get(k, 0) for k in FEATURE_COLUMNS}])
+            # ✅ Create DataFrame with only the features the model was trained on
+            X_data = {}
+            for col in FEATURE_COLUMNS:
+                X_data[col] = feats.get(col, 0)
+            X = pd.DataFrame([X_data])
             print(f"📊 X shape: {X.shape}")
+            print(f"📊 X columns: {X.columns.tolist()}")
         except Exception as e:
             print(f"⚠️ Feature DataFrame error: {e}")
             X = pd.DataFrame([{'url_length': len(url)}])
@@ -584,7 +630,6 @@ def predict(req: PredictRequest):
                 pred_idx = int(np.argmax(proba))
                 confidence = float(proba[pred_idx])
                 
-                # Debug: Print probabilities
                 print(f"  📊 {model_name} probs: {proba}")
                 
                 if hasattr(label_encoder, 'classes_'):
@@ -611,12 +656,10 @@ def predict(req: PredictRequest):
     
     # ===== 7. Final Decision =====
     if rule_override:
-        # ✅ RULE OVERRIDE WINS!
         final_prediction = 'malicious'
         final_confidence = rule_confidence
         print(f"🔥 FINAL: {final_prediction} (Rule Override, {final_confidence:.2%})")
     else:
-        # Majority voting from ML models
         vote_counts = {}
         for pred in ml_predictions:
             vote_counts[pred] = vote_counts.get(pred, 0) + 1

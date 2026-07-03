@@ -24,6 +24,7 @@ from xgboost import XGBClassifier
 try:
     from features import extract_features, FEATURE_COLUMNS
     print("✅ Features imported successfully")
+    print(f"📋 Feature columns: {FEATURE_COLUMNS}")
 except ImportError as e:
     print(f"❌ Import error: {e}")
     sys.exit(1)
@@ -96,13 +97,14 @@ def main():
     print(f"\n📊 Train: {len(X_train)} rows, Test: {len(X_test)} rows")
 
     # ============================================
-    # 6. DEFINE MODELS (3 alag models)
+    # 6. DEFINE MODELS (FIXED)
     # ============================================
     models = {
         "LogisticRegression": LogisticRegression(
-            max_iter=1000, 
+            max_iter=1000,
             random_state=42,
             C=1.0
+            # ✅ REMOVED: multi_class parameter (sklearn version mismatch)
         ),
         "RandomForest": RandomForestClassifier(
             n_estimators=300, 

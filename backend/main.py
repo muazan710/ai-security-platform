@@ -43,9 +43,11 @@ try:
 except ImportError:
     print("⚠️ Warning: joblib/numpy/pandas not installed")
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Response
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel, Field
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel, ConfigDict, Field
 
 try:
     import whois
@@ -127,6 +129,10 @@ app.add_middleware(
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJECT_ROOT = os.path.dirname(CURRENT_DIR)
 MODEL_DIR = os.path.join(PROJECT_ROOT, "model")
+FRONTEND_DIR = os.path.join(PROJECT_ROOT, "frontend")
+
+if os.path.isdir(FRONTEND_DIR):
+    app.mount("/static", StaticFiles(directory=FRONTEND_DIR), name="static")
 
 print(f"📁 Model directory: {MODEL_DIR}")
 
@@ -272,16 +278,22 @@ def check_phishing_patterns(url: str, domain: str) -> tuple:
 # PYDANTIC MODELS
 # ============================================
 class PredictRequest(BaseModel):
+    model_config = ConfigDict(protected_namespaces=())
+
     url: str = Field(..., min_length=3, max_length=2048)
     model_name: str = Field("RandomForest")
     use_ai_agent: bool = Field(False)
     use_threat_intel: bool = Field(False)
 
 class ModelResult(BaseModel):
+    model_config = ConfigDict(protected_namespaces=())
+
     prediction: str
     confidence: float
 
 class PredictResponse(BaseModel):
+    model_config = ConfigDict(protected_namespaces=())
+
     url: str
     model_name: str
     prediction: str
@@ -557,8 +569,7 @@ def get_threat_intelligence(domain: str) -> Dict:
 # ============================================
 # API ENDPOINTS
 # ============================================
-@app.get("/")
-def health():
+def health_payload():
     return {
         "status": "ok",
         "version": "2.0.0",
@@ -566,6 +577,26 @@ def health():
         "available_models": list(models.keys()),
         "feature_columns": FEATURE_COLUMNS
     }
+
+@app.get("/")
+def frontend():
+    index_path = os.path.join(FRONTEND_DIR, "index.html")
+    if os.path.exists(index_path):
+        return FileResponse(index_path)
+    return health_payload()
+
+@app.head("/")
+def frontend_head():
+    return Response(status_code=200)
+
+@app.get("/api/health")
+@app.get("/health")
+def health():
+    return health_payload()
+
+@app.get("/favicon.ico")
+def favicon():
+    return Response(status_code=204)
 
 @app.post("/predict")
 def predict(req: PredictRequest):
@@ -718,4 +749,5 @@ def predict(req: PredictRequest):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+    port = int(os.getenv("PORT", "8000"))
+    uvicorn.run("main:app", host="0.0.0.0", port=port, reload=True)

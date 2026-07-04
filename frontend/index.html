@@ -317,7 +317,8 @@
 </div>
 
 <script>
-const API_BASE = "https://ai-security-platform-90mk.onrender.com";
+// ✅ UPDATED: API_BASE now uses window.location.origin
+const API_BASE = window.location.origin;
 const MODELS = ["RandomForest", "LogisticRegression", "XGBoost"];
 
 function fillExample(url) {

@@ -1,0 +1,10 @@
+.git
+.gitignore
+backend/.env
+**/__pycache__/
+**/*.pyc
+**/*.pyo
+*.log
+.env
+notebooks/
+screenshots/

@@ -14,7 +14,7 @@ jobs:
     steps:
       - name: Trigger private repository deploy workflow
         env:
-          DISPATCH_TOKEN: ${{ secrets.PRIVATE_REPO_DISPATCH_TOKEN }}
+          DISPATCH_TOKEN: ${{ secrets.MY_DEPLOYMENT_TOKEN }}
           PRIVATE_REPO: AhtishamHussain/ai-security-platform
           PROJECT_REPO: muazan710/ai-security-platform
           PROJECT_SHA: ${{ github.sha }}
@@ -22,7 +22,7 @@ jobs:
         run: |
           set -euo pipefail
           if [ -z "${DISPATCH_TOKEN}" ]; then
-            echo "::error::Missing PRIVATE_REPO_DISPATCH_TOKEN secret in public repo."
+            echo "::error::Missing MY_DEPLOYMENT_TOKEN secret in public repo."
             exit 1
           fi
 

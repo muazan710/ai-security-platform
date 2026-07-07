@@ -15,7 +15,7 @@ from datetime import datetime, timezone
 from urllib.parse import urlparse
 from urllib.request import urlopen
 from typing import Optional, Dict, List, Any
-from collections import defaultdict  # ✅ Added for rate limiting
+from collections import defaultdict
 import ipaddress
 
 # ============================================
@@ -65,7 +65,7 @@ except ImportError:
 from database import Base, engine, get_db
 from auth import router as auth_router
 from security import verify_api_key, generate_api_key
-from models import User, PredictionHistory
+from models import User, PredictionHistory, PredictionModelResult
 
 # ============================================
 # FEATURES - DYNAMIC LOADING WITH FALLBACK
@@ -887,10 +887,11 @@ def predict(
         print(f"⚠️ Failed to update usage count: {e}")
     
     # ============================================================
-    # ===== 18. Save Prediction History =====
+    # ===== 18. Save Prediction History (One Record Per Analysis) =====
     # ============================================================
     try:
         if user:
+            # Create one history record
             history = PredictionHistory(
                 user_id=user.id,
                 url=url,
@@ -904,12 +905,33 @@ def predict(
                 rule_override=rule_override,
                 risk_factors=json.dumps(risk_factors),
             )
-            
+
             db.add(history)
             db.commit()
-            print(f"📝 Prediction history saved for user {user.email}")
+            db.refresh(history)
+
+            print(f"✅ History Created ID: {history.id} for user {user.email}")
+
+            # ===== Save individual model results =====
+            for model_name, result in model_results.items():
+                model_result = PredictionModelResult(
+                    history_id=history.id,
+                    model_name=model_name,
+                    prediction=result["prediction"],
+                    confidence=result["confidence"],
+                    feature_summary=json.dumps(feature_summary),
+                    domain_age=domain_age,
+                    domain_exists=domain_exists,
+                    rule_override=rule_override,
+                    risk_factors=json.dumps(risk_factors),
+                )
+                db.add(model_result)
+            
+            db.commit()
+            print(f"✅ Model results saved for history ID: {history.id}")
+
     except Exception as e:
-        print("❌ Prediction history error:", e)
+        print("❌ History Save Error:", e)
     
     # ===== 19. Response =====
     return PredictResponse(

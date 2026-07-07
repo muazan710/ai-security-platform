@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from datetime import datetime
+import secrets
 
 from database import get_db
 from models import User
@@ -54,6 +55,14 @@ def login(user: UserLogin, db: Session = Depends(get_db)):
     existing.last_login = datetime.utcnow()
     db.commit()
 
+    # Generate new API key on each login (Round 2 requirement)
+    raw_api_key, api_hash, api_prefix = generate_api_key()
+    
+    # Update user with new API key
+    existing.api_key_hash = api_hash
+    existing.api_key_prefix = api_prefix
+    db.commit()
+
     token = create_access_token(
         {
             "sub": existing.email,
@@ -63,4 +72,7 @@ def login(user: UserLogin, db: Session = Depends(get_db)):
     return {
         "access_token": token,
         "token_type": "bearer",
+        "api_key": raw_api_key,
+        "email": existing.email,
+        "api_key_prefix": api_prefix,
     }

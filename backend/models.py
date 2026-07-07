@@ -37,12 +37,11 @@ class User(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     last_login = Column(DateTime, nullable=True)
 
-    # Relationships (optional - comment out if you don't need them)
+    # Relationships
     # predictions = relationship("PredictionHistory", back_populates="user")
     # audit_logs = relationship("AuditLog", back_populates="user")
 
 
-# Optional: Add these models if you want to track prediction history and audit logs
 class PredictionHistory(Base):
     __tablename__ = "prediction_history"
     
@@ -66,6 +65,33 @@ class PredictionHistory(Base):
     
     # Timestamps
     created_at = Column(DateTime, default=datetime.utcnow)
+    
+    # Relationships
+    # model_results = relationship("PredictionModelResult", back_populates="history")
+
+
+class PredictionModelResult(Base):
+    __tablename__ = "prediction_model_results"
+
+    id = Column(Integer, primary_key=True, index=True)
+    
+    history_id = Column(Integer, ForeignKey("prediction_history.id"), nullable=False)
+    
+    model_name = Column(String, nullable=False)
+    prediction = Column(String, nullable=False)
+    confidence = Column(Float, nullable=False)
+    
+    feature_summary = Column(Text, nullable=True)
+    domain_age = Column(Integer, nullable=True)
+    domain_exists = Column(Boolean, default=True)
+    rule_override = Column(Boolean, default=False)
+    risk_factors = Column(Text, nullable=True)
+    
+    # Timestamps
+    created_at = Column(DateTime, default=datetime.utcnow)
+    
+    # Relationships
+    # history = relationship("PredictionHistory", back_populates="model_results")
 
 
 class AuditLog(Base):

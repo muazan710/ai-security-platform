@@ -15,6 +15,8 @@ from datetime import datetime, timezone
 from urllib.parse import urlparse
 from urllib.request import urlopen
 from typing import Optional, Dict, List, Any
+from collections import defaultdict  # ✅ Added for rate limiting
+import ipaddress
 
 # ============================================
 # LOAD .env FILE
@@ -62,8 +64,8 @@ except ImportError:
 # ============================================
 from database import Base, engine, get_db
 from auth import router as auth_router
-from security import verify_api_key
-from models import User
+from security import verify_api_key, generate_api_key
+from models import User, PredictionHistory
 
 # ============================================
 # FEATURES - DYNAMIC LOADING WITH FALLBACK
@@ -294,6 +296,112 @@ def check_phishing_patterns(url: str, domain: str) -> tuple:
     return False, 0.0, ""
 
 # ============================================
+# URL VALIDATION FUNCTION
+# ============================================
+def validate_url(url: str):
+    """
+    Validate URL format before prediction.
+    """
+    if not url:
+        raise HTTPException(
+            status_code=400,
+            detail="URL is required."
+        )
+    
+    parsed = urlparse(url)
+    
+    if parsed.scheme not in ["http", "https"]:
+        raise HTTPException(
+            status_code=400,
+            detail="Only HTTP and HTTPS URLs are allowed."
+        )
+    
+    if not parsed.netloc:
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid URL."
+        )
+    
+    return parsed
+
+# ============================================
+# SSRF PROTECTION FUNCTION
+# ============================================
+def block_ssrf(parsed):
+    """
+    Block localhost and private/internal IPs to prevent SSRF attacks.
+    """
+    host = parsed.hostname
+    
+    if not host:
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid hostname."
+        )
+    
+    # Block localhost
+    if host.lower() == "localhost":
+        raise HTTPException(
+            status_code=403,
+            detail="localhost is not allowed."
+        )
+    
+    try:
+        # Resolve hostname to IP address
+        ip = ipaddress.ip_address(socket.gethostbyname(host))
+        
+        # Check if IP is private, loopback, link-local, reserved, or multicast
+        if (
+            ip.is_private
+            or ip.is_loopback
+            or ip.is_link_local
+            or ip.is_reserved
+            or ip.is_multicast
+        ):
+            raise HTTPException(
+                status_code=403,
+                detail="Private/Internal IPs are not allowed."
+            )
+            
+    except ValueError:
+        # Not a valid IP address (hostname like 'google.com')
+        pass
+    except socket.gaierror:
+        # DNS resolution failed - will be caught later
+        pass
+
+# ============================================
+# BASIC RATE LIMITING
+# ============================================
+
+RATE_LIMIT = 100          # requests
+RATE_WINDOW = 3600        # seconds (1 hour)
+
+request_log = defaultdict(list)
+
+
+def check_rate_limit(api_key_hash: str):
+    """
+    Basic per-API-key rate limiting.
+    """
+
+    now = time.time()
+
+    # Remove old requests
+    request_log[api_key_hash] = [
+        t for t in request_log[api_key_hash]
+        if now - t < RATE_WINDOW
+    ]
+
+    if len(request_log[api_key_hash]) >= RATE_LIMIT:
+        raise HTTPException(
+            status_code=429,
+            detail="Rate limit exceeded. Try again later."
+        )
+
+    request_log[api_key_hash].append(now)
+
+# ============================================
 # PYDANTIC MODELS
 # ============================================
 class PredictRequest(BaseModel):
@@ -326,7 +434,7 @@ class PredictResponse(BaseModel):
     model_results: Dict[str, ModelResult] = {}
     ai_agent: Optional[dict] = None
     threat_intel: Optional[dict] = None
-    usage_count: Optional[int] = None  # Added to show usage
+    usage_count: Optional[int] = None
 
 # ============================================
 # DOMAIN FUNCTIONS
@@ -624,32 +732,44 @@ def predict(
     api_key: str = Depends(verify_api_key),
     db: Session = Depends(get_db)
 ):
+    # ===== STEP 1: Check Rate Limit =====
+    check_rate_limit(api_key)
+    
+    # ===== STEP 2: Normalize URL =====
     url = _normalize_url(req.url.strip())
+    
     if not url:
         raise HTTPException(status_code=400, detail="URL cannot be empty")
     
+    # ===== STEP 3: Validate URL Format =====
+    parsed = validate_url(url)
+    
+    # ===== STEP 4: Block SSRF (Private/Internal IPs) =====
+    block_ssrf(parsed)
+    
+    # ===== STEP 5: Check Model Availability =====
     if req.model_name not in models or models[req.model_name] is None:
         raise HTTPException(status_code=400, detail=f"Model '{req.model_name}' not available")
     
-    parsed = urlparse(url)
+    # Get domain from validated URL
     domain = parsed.hostname or ''
     
-    # ===== 1. DNS Check =====
+    # ===== 6. DNS Check =====
     domain_exists = _domain_exists(domain) if domain else False
     print(f"🔍 Domain '{domain}' exists: {domain_exists}")
     
-    # ===== 2. Feature Extraction =====
+    # ===== 7. Feature Extraction =====
     feats = extract_features(url)
     print(f"📊 Extracted features for: {url}")
     
-    # ===== 3. Domain Age =====
+    # ===== 8. Domain Age =====
     domain_age = None
     if domain_exists:
         domain_age = _domain_age_days(url, check_exists=True)
     feats["domain_age_days"] = domain_age
     print(f"📅 Domain age: {domain_age} days" if domain_age else "📅 Domain age: N/A")
     
-    # ===== 4. Rule Engine =====
+    # ===== 9. Rule Engine =====
     is_malicious, rule_confidence, rule_reason = check_phishing_patterns(url, domain)
     rule_override = False
     
@@ -657,10 +777,9 @@ def predict(
         rule_override = True
         print(f"🔥 RULE-BASED OVERRIDE: {rule_reason} ({rule_confidence:.2%})")
     
-    # ===== 5. Prepare Features for ML =====
+    # ===== 10. Prepare Features for ML =====
     if FEATURE_COLUMNS:
         try:
-            # ✅ Create DataFrame with only the features the model was trained on
             X_data = {}
             for col in FEATURE_COLUMNS:
                 X_data[col] = feats.get(col, 0)
@@ -673,7 +792,7 @@ def predict(
     else:
         X = pd.DataFrame([{'url_length': len(url)}])
     
-    # ===== 6. ML Predictions =====
+    # ===== 11. ML Predictions =====
     model_results = {}
     ml_predictions = []
     ml_confidences = []
@@ -709,7 +828,7 @@ def predict(
             ml_predictions.append("safe")
             ml_confidences.append(0.7)
     
-    # ===== 7. Final Decision =====
+    # ===== 12. Final Decision =====
     if rule_override:
         final_prediction = 'malicious'
         final_confidence = rule_confidence
@@ -726,24 +845,24 @@ def predict(
         
         print(f"📊 FINAL: {final_prediction} (ML Voting, {final_confidence:.2%})")
     
-    # ===== 8. Build Risk Factors =====
+    # ===== 13. Build Risk Factors =====
     risk_factors = _build_risk_factors(feats, domain_exists, rule_reason if rule_override else "")
     risk_level = _risk_level(final_prediction, final_confidence)
     
-    # ===== 9. Feature Summary =====
+    # ===== 14. Feature Summary =====
     feature_summary = {k: feats.get(k) for k in FEATURE_COLUMNS if k in feats} if FEATURE_COLUMNS else feats
     feature_summary["domain_exists"] = domain_exists
     feature_summary["domain_age_days"] = domain_age
     feature_summary["rule_override"] = rule_override
     
-    # ===== 10. AI Agent =====
+    # ===== 15. AI Agent =====
     ai_agent = None
     if req.use_ai_agent:
         ai_agent = generate_ai_agent_explanation(
             url, risk_factors, final_prediction, domain_age, domain_exists, rule_override
         )
     
-    # ===== 11. Threat Intelligence =====
+    # ===== 16. Threat Intelligence =====
     threat_intel = None
     if req.use_threat_intel and domain and domain_exists:
         threat_intel = get_threat_intelligence(domain)
@@ -754,7 +873,8 @@ def predict(
             "comparison": "❌ Domain not found"
         }
     
-    # ===== 12. Update Usage Counter =====
+    # ===== 17. Update Usage Counter =====
+    user = None
     usage_count = None
     try:
         user = db.query(User).filter(User.api_key_hash == api_key).first()
@@ -766,7 +886,32 @@ def predict(
     except Exception as e:
         print(f"⚠️ Failed to update usage count: {e}")
     
-    # ===== 13. Response =====
+    # ============================================================
+    # ===== 18. Save Prediction History =====
+    # ============================================================
+    try:
+        if user:
+            history = PredictionHistory(
+                user_id=user.id,
+                url=url,
+                prediction=final_prediction,
+                confidence=round(final_confidence, 4),
+                risk_level=risk_level,
+                model_name=req.model_name,
+                feature_summary=json.dumps(feature_summary),
+                domain_age=domain_age,
+                domain_exists=domain_exists,
+                rule_override=rule_override,
+                risk_factors=json.dumps(risk_factors),
+            )
+            
+            db.add(history)
+            db.commit()
+            print(f"📝 Prediction history saved for user {user.email}")
+    except Exception as e:
+        print("❌ Prediction history error:", e)
+    
+    # ===== 19. Response =====
     return PredictResponse(
         url=url,
         model_name=req.model_name,
@@ -783,6 +928,78 @@ def predict(
         threat_intel=threat_intel,
         usage_count=usage_count
     )
+
+# ============================================
+# DASHBOARD API
+# ============================================
+
+@app.get("/dashboard")
+def dashboard(
+    api_key: str = Depends(verify_api_key),
+    db: Session = Depends(get_db)
+):
+    user = db.query(User).filter(
+        User.api_key_hash == api_key
+    ).first()
+
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    return {
+        "email": user.email,
+        "api_key_prefix": user.api_key_prefix,
+        "usage_count": user.usage_count,
+        "created_at": user.created_at,
+        "last_login": user.last_login
+    }
+
+
+@app.get("/recent-requests")
+def recent_requests(
+    api_key: str = Depends(verify_api_key),
+    db: Session = Depends(get_db)
+):
+    user = db.query(User).filter(
+        User.api_key_hash == api_key
+    ).first()
+
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    history = (
+        db.query(PredictionHistory)
+        .filter(PredictionHistory.user_id == user.id)
+        .order_by(PredictionHistory.created_at.desc())
+        .limit(10)
+        .all()
+    )
+
+    return history
+
+
+@app.post("/regenerate-key")
+def regenerate_api_key(
+    api_key: str = Depends(verify_api_key),
+    db: Session = Depends(get_db)
+):
+    user = db.query(User).filter(
+        User.api_key_hash == api_key
+    ).first()
+
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    raw_key, key_hash, key_prefix = generate_api_key()
+
+    user.api_key_hash = key_hash
+    user.api_key_prefix = key_prefix
+
+    db.commit()
+
+    return {
+        "message": "API Key regenerated successfully",
+        "api_key": raw_key
+    }
 
 if __name__ == "__main__":
     import uvicorn

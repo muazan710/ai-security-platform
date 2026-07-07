@@ -43,11 +43,12 @@ try:
 except ImportError:
     print("⚠️ Warning: joblib/numpy/pandas not installed")
 
-from fastapi import FastAPI, HTTPException, Response
+from fastapi import FastAPI, HTTPException, Response, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, ConfigDict, Field
+from sqlalchemy.orm import Session
 
 try:
     import whois
@@ -55,6 +56,14 @@ try:
 except ImportError:
     WHOIS_AVAILABLE = False
     print("⚠️ python-whois not installed")
+
+# ============================================
+# DATABASE, AUTH AND SECURITY IMPORTS
+# ============================================
+from database import Base, engine, get_db
+from auth import router as auth_router
+from security import verify_api_key
+from models import User
 
 # ============================================
 # FEATURES - DYNAMIC LOADING WITH FALLBACK
@@ -124,6 +133,16 @@ app.add_middleware(
 )
 
 # ============================================
+# DATABASE INITIALIZATION
+# ============================================
+Base.metadata.create_all(bind=engine)
+
+# ============================================
+# ROUTER REGISTRATION
+# ============================================
+app.include_router(auth_router)
+
+# ============================================
 # MODEL LOADING
 # ============================================
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -175,7 +194,7 @@ if label_encoder is None:
     print("⚠️ Using dummy label encoder")
 
 # ============================================
-# ✅ LOAD TRAINED FEATURE COLUMNS FROM METRICS
+# LOAD TRAINED FEATURE COLUMNS FROM METRICS
 # ============================================
 TRAINED_FEATURES = None
 try:
@@ -307,6 +326,7 @@ class PredictResponse(BaseModel):
     model_results: Dict[str, ModelResult] = {}
     ai_agent: Optional[dict] = None
     threat_intel: Optional[dict] = None
+    usage_count: Optional[int] = None  # Added to show usage
 
 # ============================================
 # DOMAIN FUNCTIONS
@@ -599,7 +619,11 @@ def favicon():
     return Response(status_code=204)
 
 @app.post("/predict")
-def predict(req: PredictRequest):
+def predict(
+    req: PredictRequest,
+    api_key: str = Depends(verify_api_key),
+    db: Session = Depends(get_db)
+):
     url = _normalize_url(req.url.strip())
     if not url:
         raise HTTPException(status_code=400, detail="URL cannot be empty")
@@ -730,7 +754,19 @@ def predict(req: PredictRequest):
             "comparison": "❌ Domain not found"
         }
     
-    # ===== 12. Response =====
+    # ===== 12. Update Usage Counter =====
+    usage_count = None
+    try:
+        user = db.query(User).filter(User.api_key_hash == api_key).first()
+        if user:
+            user.usage_count += 1
+            db.commit()
+            usage_count = user.usage_count
+            print(f"📊 Updated usage count for user {user.email}: {usage_count}")
+    except Exception as e:
+        print(f"⚠️ Failed to update usage count: {e}")
+    
+    # ===== 13. Response =====
     return PredictResponse(
         url=url,
         model_name=req.model_name,
@@ -744,7 +780,8 @@ def predict(req: PredictRequest):
         rule_override=rule_override,
         model_results=model_results,
         ai_agent=ai_agent,
-        threat_intel=threat_intel
+        threat_intel=threat_intel,
+        usage_count=usage_count
     )
 
 if __name__ == "__main__":

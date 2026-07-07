@@ -29,6 +29,7 @@
   header { text-align: center; margin-bottom: 32px; }
   header h1 { font-size: 28px; }
   header .subtitle { color: var(--muted); font-size: 14px; }
+  
   .panel {
     background: var(--panel);
     border: 1px solid var(--border);
@@ -36,8 +37,11 @@
     padding: 24px;
     margin-bottom: 20px;
   }
+  
   .input-row { display: flex; gap: 10px; flex-wrap: wrap; }
-  .input-row input[type=text] {
+  .input-row input[type=text], 
+  .input-row input[type=email], 
+  .input-row input[type=password] {
     flex: 1;
     min-width: 200px;
     padding: 14px 16px;
@@ -48,7 +52,7 @@
     font-size: 15px;
     outline: none;
   }
-  .input-row input[type=text]:focus { border-color: var(--accent); }
+  .input-row input:focus { border-color: var(--accent); }
   .input-row button {
     padding: 14px 24px;
     border-radius: 10px;
@@ -58,9 +62,40 @@
     font-weight: 600;
     cursor: pointer;
     font-size: 15px;
+    transition: all 0.2s;
   }
   .input-row button:hover { background: #2563eb; }
   .input-row button:disabled { opacity: 0.6; cursor: not-allowed; }
+  .input-row button.secondary { background: #1f2937; }
+  .input-row button.secondary:hover { background: #374151; }
+  .input-row button.danger { background: var(--malicious); }
+  .input-row button.danger:hover { background: #dc2626; }
+
+  .auth-tabs {
+    display: flex;
+    gap: 0;
+    margin-bottom: 16px;
+    border-bottom: 2px solid var(--border);
+  }
+  .auth-tabs button {
+    padding: 12px 24px;
+    background: transparent;
+    border: none;
+    color: var(--muted);
+    cursor: pointer;
+    font-size: 15px;
+    font-weight: 600;
+    border-bottom: 3px solid transparent;
+    transition: all 0.2s;
+  }
+  .auth-tabs button:hover { color: var(--text); }
+  .auth-tabs button.active {
+    color: var(--accent);
+    border-bottom-color: var(--accent);
+  }
+
+  .auth-form { display: none; }
+  .auth-form.active { display: block; }
 
   .options-row { 
     display: flex; 
@@ -88,6 +123,7 @@
   .examples span {
     font-size: 12px; color: var(--muted); cursor: pointer;
     border: 1px solid var(--border); padding: 4px 12px; border-radius: 999px;
+    transition: all 0.2s;
   }
   .examples span:hover { border-color: var(--accent); color: var(--text); }
 
@@ -228,6 +264,16 @@
     border: 1px solid var(--malicious);
     margin-top: 10px;
   }
+  .success {
+    color: var(--safe);
+    font-size: 14px;
+    display: none;
+    padding: 12px;
+    background: rgba(34,197,94,0.1);
+    border-radius: 8px;
+    border: 1px solid var(--safe);
+    margin-top: 10px;
+  }
   .result { display: none; }
 
   .features-grid {
@@ -247,6 +293,137 @@
     color: var(--accent);
     border: 1px solid var(--accent);
   }
+
+  .dashboard-buttons {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-top: 10px;
+  }
+  .dashboard-buttons button {
+    padding: 10px 20px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: #0d1420;
+    color: var(--text);
+    cursor: pointer;
+    font-size: 13px;
+    transition: all 0.2s;
+  }
+  .dashboard-buttons button:hover {
+    background: var(--accent);
+    border-color: var(--accent);
+  }
+  .dashboard-buttons button.danger:hover {
+    background: var(--malicious);
+    border-color: var(--malicious);
+  }
+  
+  .api-key-display {
+    background: #0d1420;
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-family: monospace;
+    color: var(--accent);
+    border: 1px solid var(--border);
+    word-break: break-all;
+  }
+
+  .logout-btn {
+    float: right;
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    padding: 6px 16px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 13px;
+    transition: all 0.2s;
+  }
+  .logout-btn:hover {
+    border-color: var(--malicious);
+    color: var(--malicious);
+  }
+
+  .auth-message {
+    margin-top: 10px;
+    padding: 10px;
+    border-radius: 6px;
+    display: none;
+  }
+  .auth-message.error {
+    display: block;
+    background: rgba(239,68,68,0.1);
+    border: 1px solid var(--malicious);
+    color: var(--malicious);
+  }
+  .auth-message.success {
+    display: block;
+    background: rgba(34,197,94,0.1);
+    border: 1px solid var(--safe);
+    color: var(--safe);
+  }
+
+  hr {
+    margin: 20px 0;
+    border-color: #1f2937;
+  }
+
+  #apiKeyInput {
+    width: 100%;
+    padding: 12px;
+    border-radius: 8px;
+    border: 1px solid #1f2937;
+    background: #0d1420;
+    color: white;
+    margin-top: 10px;
+    font-family: monospace;
+    font-size: 14px;
+  }
+  #apiKeyInput:focus {
+    outline: none;
+    border-color: var(--accent);
+  }
+
+  /* History Table Styles */
+  #historyPanel table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 15px;
+  }
+  #historyPanel th {
+    text-align: left;
+    padding: 12px;
+    background: #0d1420;
+    color: var(--muted);
+    font-weight: 600;
+    font-size: 13px;
+    border-bottom: 2px solid var(--border);
+  }
+  #historyPanel td {
+    padding: 12px;
+    border-bottom: 1px solid var(--border);
+    font-size: 13px;
+    color: var(--text);
+  }
+  #historyPanel tr:hover {
+    background: #0d1420;
+  }
+  #historyPanel .prediction-safe { color: var(--safe); }
+  #historyPanel .prediction-suspicious { color: var(--suspicious); }
+  #historyPanel .prediction-malicious { color: var(--malicious); }
+  
+  #historyPanel .url-cell {
+    max-width: 300px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  #historyPanel .url-cell:hover {
+    overflow: visible;
+    white-space: normal;
+    word-break: break-all;
+  }
 </style>
 </head>
 <body>
@@ -256,7 +433,122 @@
     <p class="subtitle">ML-based URL analysis with AI Agent & Threat Intelligence</p>
   </header>
 
-  <div class="panel">
+  <!-- ===== AUTHENTICATION PANEL ===== -->
+  <div class="panel" id="authPanel">
+    <div class="auth-tabs">
+      <button class="active" onclick="switchAuthTab('login')">🔐 Login</button>
+      <button onclick="switchAuthTab('signup')">📝 Sign Up</button>
+    </div>
+
+    <!-- Login Form -->
+    <div class="auth-form active" id="loginForm">
+      <div class="input-row">
+        <input type="email" id="loginEmail" placeholder="Email" />
+        <input type="password" id="loginPassword" placeholder="Password" />
+        <button onclick="login()">Login</button>
+      </div>
+      <div id="loginMessage" class="auth-message"></div>
+    </div>
+
+    <!-- Signup Form -->
+    <div class="auth-form" id="signupForm">
+      <div class="input-row">
+        <input type="email" id="signupEmail" placeholder="Email" />
+        <input type="text" id="signupName" placeholder="Full Name (optional)" />
+        <input type="password" id="signupPassword" placeholder="Password" />
+        <button onclick="signup()">Create Account</button>
+      </div>
+      <div id="signupMessage" class="auth-message"></div>
+    </div>
+  </div>
+
+  <!-- ===== DASHBOARD PANEL ===== -->
+  <div class="panel" id="dashboardPanel" style="display:none;">
+    <h2>
+      👤 User Dashboard
+      <button class="logout-btn" onclick="logout()">🚪 Logout</button>
+    </h2>
+    <div class="features-grid">
+      <div>
+        Email
+        <br>
+        <span id="userEmail">-</span>
+      </div>
+      <div>
+        API Key Prefix
+        <br>
+        <span id="userApiKey">-</span>
+      </div>
+      <div>
+        Total Requests
+        <br>
+        <span id="usageCount">0</span>
+      </div>
+      <div>
+        Last Login
+        <br>
+        <span id="lastLogin">-</span>
+      </div>
+    </div>
+    <br>
+    
+    <!-- ===== API KEY MANAGEMENT ===== -->
+    <hr style="margin:20px 0; border-color:#1f2937;">
+    
+    <h3>🔑 API Key Management</h3>
+    
+    <input
+        type="text"
+        id="apiKeyInput"
+        placeholder="Paste your API Key here..."
+        style="
+            width:100%;
+            padding:12px;
+            border-radius:8px;
+            border:1px solid #1f2937;
+            background:#0d1420;
+            color:white;
+            margin-top:10px;
+            font-family:monospace;
+            font-size:14px;
+        "
+    >
+    
+    <div class="dashboard-buttons">
+      <button onclick="saveApiKey()">
+        💾 Save API Key
+      </button>
+      <button onclick="clearApiKey()" class="danger">
+        🗑 Remove API Key
+      </button>
+    </div>
+    
+    <br>
+    <div class="dashboard-buttons">
+      <button onclick="loadDashboard()">🔄 Refresh Dashboard</button>
+      <button onclick="regenerateKey()" class="danger">🔑 Regenerate API Key</button>
+    </div>
+  </div>
+
+  <!-- ===== HISTORY PANEL ===== -->
+  <div class="panel" id="historyPanel" style="display:none;">
+    <h2>📜 Recent Requests</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>URL</th>
+          <th>Prediction</th>
+          <th>Confidence</th>
+          <th>Time</th>
+        </tr>
+      </thead>
+      <tbody id="historyTable">
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ===== MAIN ANALYSIS PANEL ===== -->
+  <div class="panel" id="analysisPanel">
     <div class="input-row">
       <input type="text" id="urlInput" placeholder="Enter URL to analyze..." />
       <button id="checkBtn" onclick="checkUrl()">🔍 Analyze</button>
@@ -313,52 +605,376 @@
     </details>
   </div>
 
-  <footer>Backend: FastAPI · AI Agent · Threat Intelligence · </footer>
+  <footer>Backend: FastAPI · AI Agent · Threat Intelligence · Dashboard</footer>
 </div>
 
 <script>
-// ✅ UPDATED: API_BASE now uses window.location.origin
+// ============================================================
+// CONFIGURATION
+// ============================================================
 const API_BASE = window.location.origin;
 const MODELS = ["RandomForest", "LogisticRegression", "XGBoost"];
+let API_KEY = localStorage.getItem("api_key") || "";
 
+// ============================================================
+// AUTHENTICATION FUNCTIONS
+// ============================================================
+function switchAuthTab(tab) {
+  document.querySelectorAll('.auth-tabs button').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.auth-form').forEach(f => f.classList.remove('active'));
+  
+  if (tab === 'login') {
+    document.querySelector('.auth-tabs button:first-child').classList.add('active');
+    document.getElementById('loginForm').classList.add('active');
+  } else {
+    document.querySelector('.auth-tabs button:last-child').classList.add('active');
+    document.getElementById('signupForm').classList.add('active');
+  }
+  
+  // Clear messages
+  document.getElementById('loginMessage').className = 'auth-message';
+  document.getElementById('signupMessage').className = 'auth-message';
+}
+
+function showAuthMessage(elementId, message, type = 'error') {
+  const el = document.getElementById(elementId);
+  el.textContent = message;
+  el.className = `auth-message ${type}`;
+}
+
+async function signup() {
+  const email = document.getElementById('signupEmail').value.trim();
+  const password = document.getElementById('signupPassword').value;
+  const fullName = document.getElementById('signupName').value.trim();
+  
+  if (!email || !password) {
+    showAuthMessage('signupMessage', 'Please fill in all required fields.');
+    return;
+  }
+  
+  if (password.length < 6) {
+    showAuthMessage('signupMessage', 'Password must be at least 6 characters.');
+    return;
+  }
+  
+  try {
+    const res = await fetch(`${API_BASE}/auth/signup`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password, full_name: fullName || undefined })
+    });
+    
+    const data = await res.json();
+    
+    if (!res.ok) {
+      showAuthMessage('signupMessage', data.detail || 'Signup failed.');
+      return;
+    }
+    
+    showAuthMessage('signupMessage', '✅ Account created successfully! Please login.', 'success');
+    
+    // Clear signup form
+    document.getElementById('signupEmail').value = '';
+    document.getElementById('signupPassword').value = '';
+    document.getElementById('signupName').value = '';
+    
+    // Switch to login tab
+    setTimeout(() => switchAuthTab('login'), 1500);
+    
+  } catch (e) {
+    showAuthMessage('signupMessage', 'Network error: ' + e.message);
+  }
+}
+
+async function login() {
+  const email = document.getElementById('loginEmail').value.trim();
+  const password = document.getElementById('loginPassword').value;
+  
+  if (!email || !password) {
+    showAuthMessage('loginMessage', 'Please fill in all fields.');
+    return;
+  }
+  
+  try {
+    const formData = new URLSearchParams();
+    formData.append('username', email);
+    formData.append('password', password);
+    
+    const res = await fetch(`${API_BASE}/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: formData
+    });
+    
+    const data = await res.json();
+    
+    if (!res.ok) {
+      showAuthMessage('loginMessage', data.detail || 'Login failed.');
+      return;
+    }
+    
+    // Save API key to localStorage
+    if (data.api_key) {
+      API_KEY = data.api_key;
+      localStorage.setItem('api_key', API_KEY);
+      document.getElementById('apiKeyInput').value = API_KEY;
+      console.log('✅ API Key saved:', API_KEY.substring(0, 12) + '...');
+    } else {
+      showAuthMessage('loginMessage', 'No API key received from server.', 'error');
+      return;
+    }
+    
+    // Hide auth panel, show dashboard
+    document.getElementById('authPanel').style.display = 'none';
+    document.getElementById('dashboardPanel').style.display = 'block';
+    
+    // Clear login form
+    document.getElementById('loginEmail').value = '';
+    document.getElementById('loginPassword').value = '';
+    
+    // Load dashboard and history
+    await loadDashboard();
+    await loadHistory();
+    
+  } catch (e) {
+    showAuthMessage('loginMessage', 'Network error: ' + e.message);
+  }
+}
+
+function logout() {
+  localStorage.removeItem('api_key');
+  API_KEY = '';
+  document.getElementById('apiKeyInput').value = '';
+  document.getElementById('authPanel').style.display = 'block';
+  document.getElementById('dashboardPanel').style.display = 'none';
+  document.getElementById('historyPanel').style.display = 'none';
+  document.getElementById('resultPanel').style.display = 'none';
+  document.getElementById('loginMessage').className = 'auth-message';
+  document.getElementById('loginMessage').textContent = 'Logged out successfully.';
+  document.getElementById('loginMessage').className = 'auth-message success';
+}
+
+// ============================================================
+// API KEY MANAGEMENT FUNCTIONS
+// ============================================================
+function saveApiKey() {
+  const key = document.getElementById('apiKeyInput').value.trim();
+  
+  if (key === '') {
+    alert('Please enter API Key');
+    return;
+  }
+  
+  API_KEY = key;
+  localStorage.setItem('api_key', key);
+  
+  alert('✅ API Key Saved');
+  
+  // Show dashboard if hidden
+  document.getElementById('authPanel').style.display = 'none';
+  document.getElementById('dashboardPanel').style.display = 'block';
+  
+  loadDashboard();
+  loadHistory();
+}
+
+function clearApiKey() {
+  if (!confirm('Are you sure you want to remove the saved API key?')) {
+    return;
+  }
+  
+  localStorage.removeItem('api_key');
+  API_KEY = '';
+  document.getElementById('apiKeyInput').value = '';
+  document.getElementById('dashboardPanel').style.display = 'none';
+  document.getElementById('historyPanel').style.display = 'none';
+  document.getElementById('authPanel').style.display = 'block';
+  document.getElementById('resultPanel').style.display = 'none';
+  
+  alert('🗑 API Key Removed');
+}
+
+// ============================================================
+// DASHBOARD FUNCTIONS
+// ============================================================
+async function loadDashboard() {
+  if (!API_KEY) {
+    console.log('No API key found. Please login or save a key.');
+    return;
+  }
+  
+  try {
+    const res = await fetch(`${API_BASE}/dashboard`, {
+      headers: { "X-API-Key": API_KEY }
+    });
+    
+    if (res.status === 401 || res.status === 403) {
+      // Invalid API key, redirect to login
+      alert('Invalid API Key. Please login again.');
+      logout();
+      return;
+    }
+    
+    if (!res.ok) {
+      console.error('Dashboard fetch failed:', res.status);
+      return;
+    }
+    
+    const data = await res.json();
+    
+    document.getElementById('userEmail').innerText = data.email || '-';
+    document.getElementById('userApiKey').innerText = (data.api_key_prefix || '') + '********';
+    document.getElementById('usageCount').innerText = data.usage_count || 0;
+    document.getElementById('lastLogin').innerText = data.last_login || '-';
+    
+    // ✅ Load history after dashboard
+    await loadHistory();
+    
+  } catch (e) {
+    console.error('Dashboard error:', e);
+  }
+}
+
+async function loadHistory() {
+  if (API_KEY === '') {
+    return;
+  }
+  
+  try {
+    const res = await fetch(`${API_BASE}/recent-requests`, {
+      headers: {
+        "X-API-Key": API_KEY
+      }
+    });
+    
+    if (!res.ok) {
+      return;
+    }
+    
+    const rows = await res.json();
+    
+    document.getElementById('historyPanel').style.display = 'block';
+    const table = document.getElementById('historyTable');
+    table.innerHTML = '';
+    
+    if (rows.length === 0) {
+      table.innerHTML = `
+        <tr>
+          <td colspan="4" style="text-align:center; color: var(--muted); padding: 20px;">
+            No requests yet. Start analyzing URLs!
+          </td>
+        </tr>
+      `;
+      return;
+    }
+    
+    rows.forEach(r => {
+      const predictionClass = `prediction-${r.prediction}`;
+      table.innerHTML += `
+        <tr>
+          <td class="url-cell" title="${r.url}">${r.url}</td>
+          <td class="${predictionClass}"><strong>${r.prediction.toUpperCase()}</strong></td>
+          <td>${(r.confidence * 100).toFixed(1)}%</td>
+          <td>${new Date(r.created_at).toLocaleString()}</td>
+        </tr>
+      `;
+    });
+    
+  } catch (e) {
+    console.error('History load error:', e);
+  }
+}
+
+async function regenerateKey() {
+  if (!API_KEY) {
+    alert('Please save an API key first.');
+    return;
+  }
+  
+  if (!confirm('Are you sure you want to regenerate your API key? The old key will stop working immediately.')) {
+    return;
+  }
+  
+  try {
+    const res = await fetch(`${API_BASE}/regenerate-key`, {
+      method: 'POST',
+      headers: { 'X-API-Key': API_KEY }
+    });
+    
+    if (!res.ok) {
+      const error = await res.json().catch(() => ({}));
+      alert('Failed to regenerate key: ' + (error.detail || res.statusText));
+      return;
+    }
+    
+    const data = await res.json();
+    
+    // Update API key
+    API_KEY = data.api_key;
+    localStorage.setItem('api_key', API_KEY);
+    document.getElementById('apiKeyInput').value = API_KEY;
+    
+    alert('✅ New API Key generated!\n\n' + data.api_key + '\n\n⚠️ Save this key now. It won\'t be shown again.');
+    
+    await loadDashboard();
+    await loadHistory();
+    
+  } catch (e) {
+    alert('Error regenerating key: ' + e.message);
+  }
+}
+
+// ============================================================
+// URL ANALYSIS FUNCTIONS
+// ============================================================
 function fillExample(url) {
-  document.getElementById("urlInput").value = url;
+  document.getElementById('urlInput').value = url;
   checkUrl();
 }
 
 async function checkUrl() {
-  const url = document.getElementById("urlInput").value.trim();
-  const useAI = document.getElementById("aiAgentCheck").checked;
-  const useIntel = document.getElementById("threatIntelCheck").checked;
+  const url = document.getElementById('urlInput').value.trim();
+  const useAI = document.getElementById('aiAgentCheck').checked;
+  const useIntel = document.getElementById('threatIntelCheck').checked;
   
-  const errorEl = document.getElementById("error");
-  const loadingEl = document.getElementById("loading");
-  const resultPanel = document.getElementById("resultPanel");
+  const errorEl = document.getElementById('error');
+  const loadingEl = document.getElementById('loading');
+  const resultPanel = document.getElementById('resultPanel');
   
-  errorEl.style.display = "none";
-  resultPanel.style.display = "none";
-
-  if (!url) { 
-    errorEl.textContent = "Please enter a URL."; 
-    errorEl.style.display = "block"; 
-    return; 
+  errorEl.style.display = 'none';
+  resultPanel.style.display = 'none';
+  
+  if (!url) {
+    errorEl.textContent = 'Please enter a URL.';
+    errorEl.style.display = 'block';
+    return;
   }
-
-  loadingEl.style.display = "block";
-  document.getElementById("checkBtn").disabled = true;
-
+  
+  // Check if user is authenticated
+  if (!API_KEY) {
+    errorEl.textContent = '⚠️ Please login or save an API key first to use the analysis feature.';
+    errorEl.style.display = 'block';
+    return;
+  }
+  
+  loadingEl.style.display = 'block';
+  document.getElementById('checkBtn').disabled = true;
+  
   const results = [];
   let errors = [];
   let domainNotFound = false;
-
+  
   try {
     const promises = MODELS.map(async (model) => {
       try {
         const res = await fetch(`${API_BASE}/predict`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ 
-            url, 
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-API-Key': API_KEY
+          },
+          body: JSON.stringify({
+            url,
             model_name: model,
             use_ai_agent: useAI,
             use_threat_intel: useIntel
@@ -368,7 +984,14 @@ async function checkUrl() {
         if (res.status === 404) {
           domainNotFound = true;
           const errorData = await res.json().catch(() => ({}));
-          throw new Error(errorData.detail || "Domain does not exist");
+          throw new Error(errorData.detail || 'Domain does not exist');
+        }
+        
+        if (res.status === 401 || res.status === 403) {
+          // Invalid API key, redirect to login
+          alert('Invalid API Key. Please login again.');
+          logout();
+          throw new Error('Authentication failed. Please login again.');
         }
         
         if (!res.ok) {
@@ -381,81 +1004,82 @@ async function checkUrl() {
         return null;
       }
     });
-
+    
     const allResults = await Promise.all(promises);
-    allResults.forEach((data, index) => {
+    allResults.forEach((data) => {
       if (data) results.push(data);
     });
-
+    
     if (domainNotFound) {
-      errorEl.textContent = "❌ Domain does not exist. Please check the URL.";
-      errorEl.style.display = "block";
-      loadingEl.style.display = "none";
-      document.getElementById("checkBtn").disabled = false;
+      errorEl.textContent = '❌ Domain does not exist. Please check the URL.';
+      errorEl.style.display = 'block';
+      loadingEl.style.display = 'none';
+      document.getElementById('checkBtn').disabled = false;
       return;
     }
-
+    
     if (results.length === 0) {
-      errorEl.textContent = "❌ All models failed. " + errors.join(" | ");
-      errorEl.style.display = "block";
+      errorEl.textContent = '❌ All models failed. ' + errors.join(' | ');
+      errorEl.style.display = 'block';
       return;
     }
-
+    
     renderResults(results, url);
+    
+    // ✅ Load history after successful prediction
+    await loadHistory();
+    
   } catch (e) {
-    errorEl.textContent = "❌ Error: " + e.message;
-    errorEl.style.display = "block";
+    errorEl.textContent = '❌ Error: ' + e.message;
+    errorEl.style.display = 'block';
   } finally {
-    loadingEl.style.display = "none";
-    document.getElementById("checkBtn").disabled = false;
+    loadingEl.style.display = 'none';
+    document.getElementById('checkBtn').disabled = false;
   }
 }
 
 function renderResults(results, url) {
-  document.getElementById("resultUrl").textContent = "🔗 " + url;
+  document.getElementById('resultUrl').textContent = '🔗 ' + url;
   
-  // ✅ FIRST: First result se final prediction lein
   const firstResult = results[0];
-  
-  // ✅ Use final prediction from backend (not model_results)
   const finalPrediction = firstResult.prediction;
   const finalConfidence = firstResult.confidence;
   const ruleOverride = firstResult.rule_override;
   
-  // ===== DOMAIN STATUS =====
-  const domainStatus = document.getElementById("domainStatus");
+  // Domain Status
+  const domainStatus = document.getElementById('domainStatus');
   if (firstResult && firstResult.domain_exists !== undefined) {
     if (firstResult.domain_exists) {
-      domainStatus.className = "domain-status exists";
-      domainStatus.textContent = "✅ Domain exists and is accessible";
+      domainStatus.className = 'domain-status exists';
+      domainStatus.textContent = '✅ Domain exists and is accessible';
     } else {
-      domainStatus.className = "domain-status not-exists";
-      domainStatus.textContent = "❌ Domain does NOT exist (DNS resolution failed - URL is invalid or misspelled)";
+      domainStatus.className = 'domain-status not-exists';
+      domainStatus.textContent = '❌ Domain does NOT exist (DNS resolution failed - URL is invalid or misspelled)';
     }
   } else {
-    domainStatus.style.display = "none";
+    domainStatus.style.display = 'none';
   }
   
-  // ===== AI AGENT =====
-  const aiBox = document.getElementById("aiAgentBox");
+  // AI Agent
+  const aiBox = document.getElementById('aiAgentBox');
   if (firstResult && firstResult.ai_agent) {
-    aiBox.style.display = "block";
-    document.getElementById("aiExplanation").textContent = firstResult.ai_agent.explanation;
+    aiBox.style.display = 'block';
+    document.getElementById('aiExplanation').textContent = firstResult.ai_agent.explanation;
     const source = firstResult.ai_agent.source;
-    document.getElementById("aiSource").textContent = source === "llm" ? "🤖 LLM" : "🧠 Rule-Based";
-    document.getElementById("aiSource").style.color = source === "llm" ? "var(--safe)" : "var(--suspicious)";
+    document.getElementById('aiSource').textContent = source === 'llm' ? '🤖 LLM' : '🧠 Rule-Based';
+    document.getElementById('aiSource').style.color = source === 'llm' ? 'var(--safe)' : 'var(--suspicious)';
   } else {
-    aiBox.style.display = "none";
+    aiBox.style.display = 'none';
   }
-
-  // ===== THREAT INTELLIGENCE =====
-  const intelBox = document.getElementById("threatIntelBox");
+  
+  // Threat Intelligence
+  const intelBox = document.getElementById('threatIntelBox');
   if (firstResult && firstResult.threat_intel) {
-    intelBox.style.display = "block";
+    intelBox.style.display = 'block';
     const intel = firstResult.threat_intel;
-    document.getElementById("threatComparison").textContent = intel.comparison || "No comparison available";
+    document.getElementById('threatComparison').textContent = intel.comparison || 'No comparison available';
     
-    let details = "";
+    let details = '';
     if (intel.virustotal && !intel.virustotal.error) {
       const vt = intel.virustotal;
       details += `🦠 VirusTotal: ${vt.detection_ratio || 'N/A'} engines flagged malicious | Reputation: ${vt.reputation || 'N/A'}`;
@@ -463,29 +1087,27 @@ function renderResults(results, url) {
     if (intel.threat_feeds && intel.threat_feeds.length > 0) {
       details += `\n📋 Threat Feeds: ${intel.threat_feeds.join('; ')}`;
     }
-    document.getElementById("threatDetails").textContent = details || "No additional threat data";
+    document.getElementById('threatDetails').textContent = details || 'No additional threat data';
   } else {
-    intelBox.style.display = "none";
+    intelBox.style.display = 'none';
   }
-
-  // ===== MODEL CARDS =====
-  const grid = document.getElementById("comparisonGrid");
-  grid.innerHTML = "";
-
-  // Use model_results for individual model cards
+  
+  // Model Cards
+  const grid = document.getElementById('comparisonGrid');
+  grid.innerHTML = '';
+  
   if (firstResult && firstResult.model_results) {
     const modelResults = firstResult.model_results;
     const modelNames = Object.keys(modelResults);
     
     modelNames.forEach((modelName) => {
       const data = modelResults[modelName];
-      const card = document.createElement("div");
-      card.className = "model-card";
+      const card = document.createElement('div');
+      card.className = 'model-card';
       const pct = Math.round(data.confidence * 100);
-      const color = data.prediction === "safe" ? "var(--safe)" :
-                    data.prediction === "suspicious" ? "var(--suspicious)" : "var(--malicious)";
+      const color = data.prediction === 'safe' ? 'var(--safe)' :
+                    data.prediction === 'suspicious' ? 'var(--suspicious)' : 'var(--malicious)';
       
-      // ✅ Show override badge if rule override is active
       const overrideBadge = ruleOverride ? '<span class="badge-override">⚡ Overridden</span>' : '';
       
       card.innerHTML = `
@@ -504,44 +1126,13 @@ function renderResults(results, url) {
       `;
       grid.appendChild(card);
     });
-  } else {
-    // Fallback: Old format
-    const getColor = (pred) => {
-      if (pred === "safe") return "var(--safe)";
-      if (pred === "suspicious") return "var(--suspicious)";
-      return "var(--malicious)";
-    };
-
-    results.forEach((data) => {
-      const card = document.createElement("div");
-      card.className = "model-card";
-      const pct = Math.round(data.confidence * 100);
-      const color = getColor(data.prediction);
-      
-      card.innerHTML = `
-        <h3>${data.model_name}</h3>
-        <div class="badge ${data.prediction}">${data.prediction.toUpperCase()} · ${data.risk_level} RISK</div>
-        <div class="conf-label">
-          <span>Confidence</span>
-          <span>${pct}%</span>
-        </div>
-        <div class="conf-bar-bg">
-          <div class="conf-bar-fill" style="width:${pct}%; background:${color};"></div>
-        </div>
-        <div class="domain-age">
-          🌐 Domain Age: <strong>${data.domain_age ? data.domain_age + ' days' : 'N/A'}</strong>
-        </div>
-      `;
-      grid.appendChild(card);
-    });
   }
-
-  // ===== ✅ CONSENSUS: Use FINAL PREDICTION from backend =====
-  const consensusEl = document.getElementById("consensus");
+  
+  // Consensus
+  const consensusEl = document.getElementById('consensus');
   
   if (ruleOverride) {
-    // ✅ Rule override active hai toh final prediction show karein
-    consensusEl.className = "consensus override";
+    consensusEl.className = 'consensus override';
     const emoji = finalPrediction === 'malicious' ? '🔴' : '🟡';
     consensusEl.innerHTML = `
       ${emoji} <strong>${finalPrediction.toUpperCase()}</strong> 
@@ -550,7 +1141,6 @@ function renderResults(results, url) {
       </span>
     `;
   } else {
-    // Normal consensus from models
     let predictions = [];
     if (firstResult && firstResult.model_results) {
       const modelResults = firstResult.model_results;
@@ -562,39 +1152,72 @@ function renderResults(results, url) {
     const unique = [...new Set(predictions)];
     
     if (unique.length === 1) {
-      consensusEl.className = "consensus agreed";
+      consensusEl.className = 'consensus agreed';
       consensusEl.innerHTML = `✅ ALL MODELS AGREE: <strong>${unique[0].toUpperCase()}</strong>`;
     } else if (unique.length === 2) {
-      consensusEl.className = "consensus partial";
+      consensusEl.className = 'consensus partial';
       const counts = {};
       predictions.forEach(p => counts[p] = (counts[p] || 0) + 1);
       const majority = Object.entries(counts).sort((a,b) => b[1] - a[1])[0];
       consensusEl.innerHTML = `⚠️ PARTIAL: ${majority[0].toUpperCase()} (${majority[1]}/3) — Models disagree`;
     } else {
-      consensusEl.className = "consensus disagreed";
+      consensusEl.className = 'consensus disagreed';
       consensusEl.innerHTML = `❌ NO CONSENSUS — Manual review recommended`;
     }
   }
-
-  // ===== FEATURES =====
+  
+  // Features
   if (firstResult && firstResult.feature_summary) {
-    const grid2 = document.getElementById("featuresGrid");
-    grid2.innerHTML = "";
+    const grid2 = document.getElementById('featuresGrid');
+    grid2.innerHTML = '';
     Object.entries(firstResult.feature_summary).forEach(([k, v]) => {
-      if (k !== "domain_age_days" && k !== "domain_exists" && k !== "rule_override") {
-        const div = document.createElement("div");
-        div.innerHTML = `${k.replace(/_/g, " ")}: <span>${v}</span>`;
+      if (k !== 'domain_age_days' && k !== 'domain_exists' && k !== 'rule_override') {
+        const div = document.createElement('div');
+        div.innerHTML = `${k.replace(/_/g, ' ')}: <span>${v}</span>`;
         grid2.appendChild(div);
       }
     });
   }
-
-  document.getElementById("resultPanel").style.display = "block";
+  
+  document.getElementById('resultPanel').style.display = 'block';
 }
 
-document.getElementById("urlInput").addEventListener("keydown", (e) => {
-  if (e.key === "Enter") checkUrl();
+// ============================================================
+// KEYBOARD SHORTCUTS
+// ============================================================
+document.getElementById('urlInput').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') checkUrl();
 });
+
+// Login with Enter key
+document.getElementById('loginPassword').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') login();
+});
+
+// Signup with Enter key
+document.getElementById('signupPassword').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') signup();
+});
+
+// ============================================================
+// PAGE LOAD - Check if user is already authenticated
+// ============================================================
+window.onload = function() {
+  // Load API key from localStorage
+  const savedKey = localStorage.getItem('api_key');
+  if (savedKey) {
+    API_KEY = savedKey;
+    document.getElementById('apiKeyInput').value = API_KEY;
+    document.getElementById('authPanel').style.display = 'none';
+    document.getElementById('dashboardPanel').style.display = 'block';
+    loadDashboard();
+    loadHistory();
+  } else {
+    document.getElementById('authPanel').style.display = 'block';
+    document.getElementById('dashboardPanel').style.display = 'none';
+    document.getElementById('historyPanel').style.display = 'none';
+  }
+};
 </script>
 </body>
 </html>

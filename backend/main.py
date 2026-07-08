@@ -989,8 +989,11 @@ def predict(
     
     # ===== 16. Threat Intelligence =====
     threat_intel = None
+    virustotal_data = None
+    
     if req.use_threat_intel and domain and domain_exists:
         threat_intel = get_threat_intelligence(domain)
+        virustotal_data = threat_intel.get("virustotal") if threat_intel else None
     elif req.use_threat_intel and not domain_exists:
         threat_intel = {
             "virustotal": {
@@ -1008,6 +1011,7 @@ def predict(
             "comparison": "❌ Domain not found",
             "threat_comparison": "❌ Domain not found",
         }
+        virustotal_data = threat_intel.get("virustotal") if threat_intel else None
     elif not req.use_threat_intel:
         threat_intel = {
             "virustotal": {
@@ -1025,6 +1029,7 @@ def predict(
             "comparison": "Threat intelligence disabled for this request",
             "threat_comparison": "Threat intelligence disabled for this request",
         }
+        virustotal_data = threat_intel.get("virustotal") if threat_intel else None
     
     # ===== 17. Update Usage Counter =====
     user = None
@@ -1044,7 +1049,20 @@ def predict(
     # ============================================================
     try:
         if user:
-            # Create one history record
+            # Calculate risk score (0-100)
+            risk_score = 0
+            if final_prediction == "malicious":
+                risk_score = 80 + int(final_confidence * 20)
+            elif final_prediction == "suspicious":
+                risk_score = 40 + int(final_confidence * 30)
+            else:
+                risk_score = int((1 - final_confidence) * 30)
+            risk_score = min(100, max(0, risk_score))
+            
+            # Calculate scan duration
+            scan_duration = sum(r.get("execution_time", 0) for r in model_results.values())
+            
+            # Create one history record with all fields
             history = PredictionHistory(
                 user_id=user.id,
                 url=url,
@@ -1052,14 +1070,15 @@ def predict(
                 confidence=round(final_confidence, 4),
                 risk_level=risk_level,
                 ai_agent=json.dumps(ai_agent),
-                virustotal=json.dumps(threat_intel.get("virustotal") if threat_intel else {}),
-                threat_intelligence=json.dumps(threat_intel or {}),
+                virustotal=json.dumps(virustotal_data) if virustotal_data else None,
+                threat_intelligence=json.dumps(threat_intel) if threat_intel else None,
                 feature_summary=json.dumps(feature_summary),
                 domain_age=domain_age,
                 domain_exists=domain_exists,
                 rule_override=rule_override,
                 risk_factors=json.dumps(risk_factors),
-                scan_duration=round(sum(r["execution_time"] for r in model_results.values()), 4),
+                risk_score=risk_score,
+                scan_duration=round(scan_duration, 4),
             )
 
             db.add(history)
@@ -1075,7 +1094,7 @@ def predict(
                     model_name=model_name,
                     prediction=result["prediction"],
                     confidence=result["confidence"],
-                    execution_time=result["execution_time"],
+                    execution_time=result.get("execution_time", 0.0),
                     feature_summary=json.dumps(feature_summary),
                     domain_age=domain_age,
                     domain_exists=domain_exists,
@@ -1089,6 +1108,7 @@ def predict(
 
     except Exception as e:
         print("❌ History Save Error:", e)
+        db.rollback()
     
     # ===== 19. Response =====
     return PredictResponse(
@@ -1104,7 +1124,7 @@ def predict(
         rule_override=rule_override,
         model_results=model_results,
         ai_agent=ai_agent,
-        virustotal=threat_intel.get("virustotal") if threat_intel else None,
+        virustotal=virustotal_data,
         threat_intel=threat_intel,
         usage_count=usage_count
     )
@@ -1131,6 +1151,7 @@ def _history_summary(item: PredictionHistory) -> dict:
         "domain_age": item.domain_age,
         "domain_exists": item.domain_exists,
         "rule_override": item.rule_override,
+        "risk_score": item.risk_score,
         "risk_factors": _loads_json(item.risk_factors, []),
         "created_at": item.created_at,
     }
@@ -1154,6 +1175,8 @@ def _history_detail(item: PredictionHistory, db: Session) -> dict:
         "features": _loads_json(item.feature_summary, {}),
         "risk_factors": _loads_json(item.risk_factors, []),
         "domain_age": item.domain_age,
+        "risk_score": item.risk_score,
+        "scan_duration": item.scan_duration,
         "rule_engine": {
             "rule_override": item.rule_override,
             "risk_level": item.risk_level,

@@ -440,10 +440,10 @@ class PredictResponse(BaseModel):
     domain_age: int | None = None
     domain_exists: bool = True
     rule_override: bool = False
-    model_results: Dict[str, ModelResult] = {}
-    ai_agent: Optional[dict] = None
-    virustotal: Optional[dict] = None
-    threat_intel: Optional[dict] = None
+    model_results: Dict[str, ModelResult] = Field(default_factory=dict)
+    virustotal: dict = Field(default_factory=dict)
+    threat_intel: dict = Field(default_factory=dict)
+    ai_agent: dict = Field(default_factory=dict)
     usage_count: Optional[int] = None
 
 # ============================================
@@ -987,32 +987,25 @@ def predict(
         url, risk_factors, final_prediction, domain_age, domain_exists, rule_override
     )
     
-    # ===== 16. Threat Intelligence =====
+    # ============================================================
+    # ===== 16. Threat Intelligence (FIXED) =====
+    # ============================================================
     threat_intel = None
     virustotal_data = None
     
-    if req.use_threat_intel and domain and domain_exists:
+    if req.use_threat_intel and domain:
+        # Try to get threat intelligence even if domain doesn't exist
         threat_intel = get_threat_intelligence(domain)
         virustotal_data = threat_intel.get("virustotal") if threat_intel else None
-    elif req.use_threat_intel and not domain_exists:
-        threat_intel = {
-            "virustotal": {
-                "domain": domain,
-                "status": "domain_not_found",
-                "reputation": "Unavailable",
-                "detection_count": 0,
-                "community_score": 0,
-                "scan_results": [],
-            },
-            "abuseipdb": {"listed": False, "confidence_score": 0},
-            "openphish": {"listed": False, "matches": []},
-            "urlhaus": {"listed": False, "matches": []},
-            "threat_feeds": [],
-            "comparison": "❌ Domain not found",
-            "threat_comparison": "❌ Domain not found",
-        }
-        virustotal_data = threat_intel.get("virustotal") if threat_intel else None
-    elif not req.use_threat_intel:
+        
+        # If domain doesn't exist, override with appropriate message
+        if not domain_exists:
+            threat_intel["virustotal"]["status"] = "domain_not_found"
+            threat_intel["virustotal"]["error"] = "Domain does not exist - cannot check VirusTotal"
+            threat_intel["comparison"] = "❌ Domain not found"
+            threat_intel["threat_comparison"] = "❌ Domain not found"
+    else:
+        # Threat intel disabled
         threat_intel = {
             "virustotal": {
                 "domain": domain,
@@ -1111,6 +1104,21 @@ def predict(
         db.rollback()
     
     # ===== 19. Response =====
+    if not isinstance(ai_agent, dict):
+        ai_agent = {}
+    if not isinstance(threat_intel, dict):
+        threat_intel = {
+            "virustotal": {},
+            "abuseipdb": {},
+            "openphish": {},
+            "urlhaus": {},
+            "threat_feeds": [],
+            "comparison": "Threat intelligence unavailable",
+            "threat_comparison": "Threat intelligence unavailable",
+        }
+    if not isinstance(virustotal_data, dict):
+        virustotal_data = threat_intel.get("virustotal", {})
+
     return PredictResponse(
         url=url,
         model_name=req.model_name,

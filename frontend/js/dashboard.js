@@ -1,9 +1,30 @@
 /* ============================================================
    CONFIGURATION
    ============================================================ */
-const API_BASE = "http://127.0.0.1:8000";
-const MODELS = ["RandomForest", "LogisticRegression", "XGBoost"];
+function resolveApiBase() {
+  if (window.API_BASE) return window.API_BASE;
+  const savedBase = localStorage.getItem("api_base");
+  if (savedBase) return savedBase;
+
+  const { protocol, hostname, port, origin } = window.location;
+  if (protocol === "file:" || port === "5500" || port === "3000") {
+    return `http://${hostname || "127.0.0.1"}:8000`;
+  }
+  return origin;
+}
+
+const API_BASE = resolveApiBase();
 let API_KEY = localStorage.getItem("api_key") || "";
+
+async function readJson(response) {
+  const text = await response.text();
+  if (!text) return {};
+  try {
+    return JSON.parse(text);
+  } catch (error) {
+    throw new Error(`API returned an invalid response from ${response.url}. Check that the backend is running on ${API_BASE}.`);
+  }
+}
 
 /* ============================================================
    DOM REFERENCES
@@ -12,7 +33,7 @@ const sections = {
   dashboard: document.getElementById("section-dashboard"),
   analysis: document.getElementById("section-analysis"),
   history: document.getElementById("section-history"),
-  apiKey: document.getElementById("section-api-key"),
+  "api-key": document.getElementById("section-api-key"),
 };
 
 const navItems = document.querySelectorAll(".nav-item");
@@ -44,7 +65,7 @@ function navigateTo(section) {
     dashboard: "Dashboard",
     analysis: "URL Analysis",
     history: "Request History",
-    apiKey: "API Key Management",
+    "api-key": "API Key Management",
   };
   document.getElementById("pageTitle").textContent = titles[section] || "Dashboard";
 
@@ -53,7 +74,7 @@ function navigateTo(section) {
     loadDashboard();
   } else if (section === "history") {
     loadHistory();
-  } else if (section === "apiKey") {
+  } else if (section === "api-key") {
     loadApiKeyInfo();
   }
 }
@@ -112,20 +133,22 @@ async function loadDashboard() {
       return;
     }
 
-    const data = await response.json();
+    const data = await readJson(response);
 
     // Update stats
-    document.getElementById("totalRequests").textContent = data.usage_count || 0;
+    document.getElementById("totalRequests").textContent = data.total_requests ?? data.usage_count ?? 0;
+    document.getElementById("safeCount").textContent = data.safe_urls ?? 0;
+    document.getElementById("suspiciousCount").textContent = data.suspicious_urls ?? 0;
+    document.getElementById("maliciousCount").textContent = data.malicious_urls ?? 0;
     document.getElementById("profileEmail").textContent = data.email || "-";
     document.getElementById("profileApiKey").textContent = (data.api_key_prefix || "") + "********";
-    document.getElementById("profileUsage").textContent = data.usage_count || 0;
+    document.getElementById("profileUsage").textContent = data.total_requests ?? data.usage_count ?? 0;
     document.getElementById("profileLastLogin").textContent = data.last_login ? new Date(data.last_login).toLocaleString() : "-";
     document.getElementById("profileCreated").textContent = data.created_at ? new Date(data.created_at).toLocaleString() : "-";
 
     updateUserInfo(data);
 
-    // Load recent activity
-    loadRecentActivity();
+    renderRecentActivity(data.recent_activity || []);
 
   } catch (error) {
     console.error("Dashboard error:", error);
@@ -143,37 +166,51 @@ async function loadRecentActivity() {
 
     if (!response.ok) return;
 
-    const data = await response.json();
-    const container = document.getElementById("recentActivity");
-
-    if (!data || data.length === 0) {
-      container.innerHTML = '<p class="text-muted">No recent activity yet.</p>';
-      return;
-    }
-
-    // Show last 5 requests
-    const recent = data.slice(0, 5);
-    let html = '<div style="display:flex;flex-direction:column;gap:8px;">';
-    recent.forEach((item) => {
-      const color = item.prediction === "safe" ? "var(--safe)" :
-                    item.prediction === "suspicious" ? "var(--suspicious)" : "var(--malicious)";
-      html += `
-        <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;background:#0d1420;border-radius:6px;flex-wrap:wrap;gap:8px;">
-          <span style="font-size:13px;color:var(--text-primary);word-break:break-all;flex:1;">${item.url}</span>
-          <span style="font-size:12px;font-weight:600;color:${color};">${item.prediction.toUpperCase()}</span>
-          <span style="font-size:11px;color:var(--text-muted);">${new Date(item.created_at).toLocaleString()}</span>
-        </div>
-      `;
-    });
-    html += '</div>';
-    container.innerHTML = html;
-
-    // Update stats
-    updateStats(data);
+    const data = await readJson(response);
+    renderRecentActivity(data || []);
 
   } catch (error) {
     console.error("Recent activity error:", error);
   }
+}
+
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+function formatPercent(value) {
+  const numeric = Number(value || 0);
+  return `${(numeric * 100).toFixed(1)}%`;
+}
+
+function renderRecentActivity(data) {
+  const container = document.getElementById("recentActivity");
+
+  if (!data || data.length === 0) {
+    container.innerHTML = '<p class="text-muted">No recent activity yet.</p>';
+    return;
+  }
+
+  const recent = data.slice(0, 5);
+  let html = '<div style="display:flex;flex-direction:column;gap:8px;">';
+  recent.forEach((item) => {
+    const color = item.prediction === "safe" ? "var(--safe)" :
+                  item.prediction === "suspicious" ? "var(--suspicious)" : "var(--malicious)";
+    html += `
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;background:#0d1420;border-radius:6px;flex-wrap:wrap;gap:8px;">
+        <span style="font-size:13px;color:var(--text-primary);word-break:break-all;flex:1;">${escapeHtml(item.url)}</span>
+        <span style="font-size:12px;font-weight:600;color:${color};">${escapeHtml(item.prediction).toUpperCase()}</span>
+        <span style="font-size:11px;color:var(--text-muted);">${new Date(item.created_at).toLocaleString()}</span>
+      </div>
+    `;
+  });
+  html += '</div>';
+  container.innerHTML = html;
 }
 
 /* ============================================================
@@ -208,14 +245,14 @@ async function loadHistory() {
 
     if (!response.ok) return;
 
-    const data = await response.json();
+    const data = await readJson(response);
     const table = document.getElementById("historyTable");
     table.innerHTML = "";
 
     if (!data || data.length === 0) {
       table.innerHTML = `
         <tr>
-          <td colspan="4" style="text-align:center; color:var(--text-muted); padding:20px;">
+          <td colspan="5" style="text-align:center; color:var(--text-muted); padding:20px;">
             No requests yet. Start analyzing URLs!
           </td>
         </tr>
@@ -226,11 +263,12 @@ async function loadHistory() {
     data.forEach((item) => {
       const predictionClass = `prediction-${item.prediction}`;
       table.innerHTML += `
-        <tr>
-          <td class="url-cell" title="${item.url}">${item.url}</td>
+        <tr id="history-row-${item.id}">
+          <td class="url-cell" title="${escapeHtml(item.url)}">${escapeHtml(item.url)}</td>
           <td class="${predictionClass}"><strong>${item.prediction.toUpperCase()}</strong></td>
-          <td>${(item.confidence * 100).toFixed(1)}%</td>
+          <td>${formatPercent(item.confidence)}</td>
           <td>${new Date(item.created_at).toLocaleString()}</td>
+          <td><button class="btn-secondary btn-small" onclick="toggleHistoryDetails(${item.id})">Open</button></td>
         </tr>
       `;
     });
@@ -238,6 +276,87 @@ async function loadHistory() {
   } catch (error) {
     console.error("History load error:", error);
   }
+}
+
+async function toggleHistoryDetails(historyId) {
+  const existing = document.getElementById(`history-detail-${historyId}`);
+  if (existing) {
+    existing.remove();
+    return;
+  }
+
+  try {
+    const response = await fetch(`${API_BASE}/history/${historyId}`, {
+      headers: { "X-API-Key": API_KEY }
+    });
+
+    if (!response.ok) {
+      alert("Could not load history details.");
+      return;
+    }
+
+    const data = await readJson(response);
+    const row = document.getElementById(`history-row-${historyId}`);
+    const detailRow = document.createElement("tr");
+    detailRow.id = `history-detail-${historyId}`;
+    detailRow.className = "history-detail-row";
+    detailRow.innerHTML = `<td colspan="5">${renderHistoryDetail(data)}</td>`;
+    row.insertAdjacentElement("afterend", detailRow);
+  } catch (error) {
+    alert("Error loading history details: " + error.message);
+  }
+}
+
+function renderHistoryDetail(data) {
+  const models = data.model_results || {};
+  const modelCards = Object.entries(models).map(([name, item]) => `
+    <div class="detail-card">
+      <strong>${escapeHtml(name)}</strong>
+      <span>${escapeHtml(item.prediction).toUpperCase()}</span>
+      <span>Confidence: ${formatPercent(item.confidence)}</span>
+      <span>Execution: ${Number(item.execution_time || 0).toFixed(4)}s</span>
+    </div>
+  `).join("");
+
+  return `
+    <div class="history-detail">
+      <div class="detail-section">
+        <h4>Final Result</h4>
+        <p><strong>${escapeHtml(data.final_result || data.prediction).toUpperCase()}</strong> (${formatPercent(data.confidence)})</p>
+      </div>
+      <div class="detail-section">
+        <h4>AI Agent</h4>
+        <p>${escapeHtml(data.ai_agent?.explanation || "No AI explanation stored.")}</p>
+        <p>${escapeHtml(data.ai_agent?.risk_summary || "")}</p>
+        <p>${escapeHtml(data.ai_agent?.human_readable || "")}</p>
+      </div>
+      <div class="detail-section">
+        <h4>VirusTotal</h4>
+        <p>Reputation: ${escapeHtml(data.virustotal?.reputation ?? "Unavailable")}</p>
+        <p>Detection count: ${escapeHtml(data.virustotal?.detection_count ?? 0)}</p>
+        <p>Community score: ${escapeHtml(data.virustotal?.community_score ?? 0)}</p>
+      </div>
+      <div class="detail-section">
+        <h4>Threat Intelligence</h4>
+        <p>${escapeHtml(data.threat_intel?.threat_comparison || data.threat_intel?.comparison || "No comparison available")}</p>
+        <p>AbuseIPDB: ${escapeHtml(data.threat_intel?.abuseipdb?.listed ? "Listed" : "Clear")}</p>
+        <p>OpenPhish: ${escapeHtml(data.threat_intel?.openphish?.listed ? "Listed" : "Clear")}</p>
+        <p>URLHaus: ${escapeHtml(data.threat_intel?.urlhaus?.listed ? "Listed" : "Clear")}</p>
+      </div>
+      <div class="detail-section detail-models">
+        <h4>ML Models</h4>
+        <div class="detail-grid">${modelCards || "No model results stored."}</div>
+      </div>
+      <div class="detail-section">
+        <h4>Risk Factors</h4>
+        <ul>${(data.risk_factors || []).map(item => `<li>${escapeHtml(item)}</li>`).join("")}</ul>
+      </div>
+      <div class="detail-section">
+        <h4>Extracted Features</h4>
+        ${featureTable(data.features || data.feature_summary || {})}
+      </div>
+    </div>
+  `;
 }
 
 /* ============================================================
@@ -253,7 +372,7 @@ async function loadApiKeyInfo() {
 
     if (!response.ok) return;
 
-    const data = await response.json();
+    const data = await readJson(response);
 
     document.getElementById("currentApiKeyPrefix").textContent = (data.api_key_prefix || "") + "********";
     document.getElementById("apiUsageTotal").textContent = data.usage_count || 0;
@@ -307,12 +426,12 @@ async function regenerateApiKey() {
     });
 
     if (!response.ok) {
-      const error = await response.json().catch(() => ({}));
+      const error = await readJson(response).catch(() => ({}));
       alert("Failed to regenerate key: " + (error.detail || response.statusText));
       return;
     }
 
-    const data = await response.json();
+    const data = await readJson(response);
 
     API_KEY = data.api_key;
     localStorage.setItem("api_key", API_KEY);
@@ -363,74 +482,37 @@ async function analyzeUrl() {
   const checkBtn = document.querySelector("#section-analysis .btn-primary");
   checkBtn.disabled = true;
 
-  const results = [];
-  let errors = [];
-  let domainNotFound = false;
-
   try {
-    const promises = MODELS.map(async (model) => {
-      try {
-        const response = await fetch(`${API_BASE}/predict`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "X-API-Key": API_KEY,
-          },
-          body: JSON.stringify({
-            url,
-            model_name: model,
-            use_ai_agent: useAI,
-            use_threat_intel: useIntel,
-          }),
-        });
-
-        if (response.status === 404) {
-          domainNotFound = true;
-          const errorData = await response.json().catch(() => ({}));
-          throw new Error(errorData.detail || "Domain does not exist");
-        }
-
-        if (response.status === 401 || response.status === 403) {
-          alert("Invalid API Key. Please login again.");
-          handleLogout();
-          throw new Error("Authentication failed");
-        }
-
-        if (!response.ok) {
-          const errorData = await response.json().catch(() => ({}));
-          throw new Error(errorData.detail || `Server error (${response.status})`);
-        }
-
-        return await response.json();
-      } catch (error) {
-        errors.push(`${model}: ${error.message}`);
-        return null;
-      }
+    const response = await fetch(`${API_BASE}/predict`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-API-Key": API_KEY,
+      },
+      body: JSON.stringify({
+        url: url,
+        model_name: "RandomForest",
+        use_ai_agent: useAI,
+        use_threat_intel: useIntel,
+      }),
     });
 
-    const allResults = await Promise.all(promises);
-    allResults.forEach((data) => {
-      if (data) results.push(data);
-    });
-
-    if (domainNotFound) {
-      errorEl.textContent = "❌ Domain does not exist. Please check the URL.";
-      errorEl.style.display = "block";
-      loadingEl.style.display = "none";
-      checkBtn.disabled = false;
+    if (response.status === 401 || response.status === 403) {
+      alert("Invalid API Key.");
+      handleLogout();
       return;
     }
 
-    if (results.length === 0) {
-      errorEl.textContent = "❌ All models failed. " + errors.join(" | ");
-      errorEl.style.display = "block";
-      return;
+    const data = await readJson(response);
+
+    if (!response.ok) {
+      throw new Error(data.detail || "Prediction failed");
     }
 
-    renderResults(results, url);
+    renderResults([data], url);
 
   } catch (error) {
-    errorEl.textContent = "❌ Error: " + error.message;
+    errorEl.textContent = error.message;
     errorEl.style.display = "block";
   } finally {
     loadingEl.style.display = "none";
@@ -451,10 +533,10 @@ function renderResults(results, url) {
   if (firstResult && firstResult.domain_exists !== undefined) {
     if (firstResult.domain_exists) {
       domainStatus.className = "domain-status exists";
-      domainStatus.textContent = "✅ Domain exists and is accessible";
+      domainStatus.textContent = "Domain exists and is accessible";
     } else {
       domainStatus.className = "domain-status not-exists";
-      domainStatus.textContent = "❌ Domain does NOT exist (DNS resolution failed - URL is invalid or misspelled)";
+      domainStatus.textContent = "Domain does not exist or DNS resolution failed";
     }
   } else {
     domainStatus.style.display = "none";
@@ -465,8 +547,10 @@ function renderResults(results, url) {
   if (firstResult && firstResult.ai_agent) {
     aiBox.style.display = "block";
     document.getElementById("aiExplanation").textContent = firstResult.ai_agent.explanation;
+    document.getElementById("aiRiskSummary").textContent = firstResult.ai_agent.risk_summary || "";
+    document.getElementById("aiHumanReadable").textContent = firstResult.ai_agent.human_readable || "";
     const source = firstResult.ai_agent.source;
-    document.getElementById("aiSource").textContent = source === "llm" ? "🤖 LLM" : "🧠 Rule-Based";
+    document.getElementById("aiSource").textContent = source === "llm" ? "LLM" : "Rule-Based";
     document.getElementById("aiSource").style.color = source === "llm" ? "var(--safe)" : "var(--suspicious)";
   } else {
     aiBox.style.display = "none";
@@ -477,17 +561,21 @@ function renderResults(results, url) {
   if (firstResult && firstResult.threat_intel) {
     intelBox.style.display = "block";
     const intel = firstResult.threat_intel;
-    document.getElementById("threatComparison").textContent = intel.comparison || "No comparison available";
+    const vt = firstResult.virustotal || intel.virustotal || {};
+    document.getElementById("threatComparison").textContent = intel.threat_comparison || intel.comparison || "No comparison available";
 
-    let details = "";
-    if (intel.virustotal && !intel.virustotal.error) {
-      const vt = intel.virustotal;
-      details += `🦠 VirusTotal: ${vt.detection_ratio || "N/A"} engines flagged malicious | Reputation: ${vt.reputation || "N/A"}`;
-    }
-    if (intel.threat_feeds && intel.threat_feeds.length > 0) {
-      details += `\n📋 Threat Feeds: ${intel.threat_feeds.join("; ")}`;
-    }
-    document.getElementById("threatDetails").textContent = details || "No additional threat data";
+    const scanResults = Array.isArray(vt.scan_results)
+      ? vt.scan_results.map(item => `${item.category}: ${item.count}`).join(", ")
+      : "No scan results";
+    document.getElementById("threatDetails").textContent = [
+      `VirusTotal reputation: ${vt.reputation ?? "Unavailable"}`,
+      `Detection count: ${vt.detection_count ?? 0}`,
+      `Community score: ${vt.community_score ?? 0}`,
+      `Scan results: ${scanResults}`,
+      `AbuseIPDB: ${intel.abuseipdb?.listed ? "Listed" : "Clear"}`,
+      `OpenPhish: ${intel.openphish?.listed ? "Listed" : "Clear"}`,
+      `URLHaus: ${intel.urlhaus?.listed ? "Listed" : "Clear"}`,
+    ].join("\n");
   } else {
     intelBox.style.display = "none";
   }
@@ -520,9 +608,8 @@ function renderResults(results, url) {
         <div class="conf-bar-bg">
           <div class="conf-bar-fill" style="width:${pct}%; background:${color};"></div>
         </div>
-        <div class="domain-age">
-          🌐 Domain Age: <strong>${firstResult.domain_age ? firstResult.domain_age + " days" : "N/A"}</strong>
-        </div>
+        <div class="domain-age">Execution Time: <strong>${Number(data.execution_time || 0).toFixed(4)}s</strong></div>
+        <div class="domain-age">Domain Age: <strong>${firstResult.domain_age ? firstResult.domain_age + " days" : "N/A"}</strong></div>
       `;
       grid.appendChild(card);
     });
@@ -535,9 +622,9 @@ function renderResults(results, url) {
     consensusEl.className = "consensus override";
     const emoji = finalPrediction === "malicious" ? "🔴" : "🟡";
     consensusEl.innerHTML = `
-      ${emoji} <strong>${finalPrediction.toUpperCase()}</strong>
+      FINAL DECISION: ${emoji} <strong>${finalPrediction.toUpperCase()}</strong>
       <span style="font-weight:400;font-size:13px;display:block;margin-top:4px;">
-        ⚠️ Rule-Based Override Active — ML models overridden by security rules
+        Rule engine flagged additional risk. Majority vote remains the final result.
       </span>
     `;
   } else {
@@ -553,33 +640,45 @@ function renderResults(results, url) {
 
     if (unique.length === 1) {
       consensusEl.className = "consensus agreed";
-      consensusEl.innerHTML = `✅ ALL MODELS AGREE: <strong>${unique[0].toUpperCase()}</strong>`;
+      consensusEl.innerHTML = `FINAL DECISION: <strong>${unique[0].toUpperCase()}</strong> — all models agree`;
     } else if (unique.length === 2) {
       consensusEl.className = "consensus partial";
       const counts = {};
       predictions.forEach(p => counts[p] = (counts[p] || 0) + 1);
       const majority = Object.entries(counts).sort((a, b) => b[1] - a[1])[0];
-      consensusEl.innerHTML = `⚠️ PARTIAL: ${majority[0].toUpperCase()} (${majority[1]}/3) — Models disagree`;
+      consensusEl.innerHTML = `FINAL DECISION: <strong>${majority[0].toUpperCase()}</strong> (${majority[1]}/3 majority)`;
     } else {
       consensusEl.className = "consensus disagreed";
-      consensusEl.innerHTML = `❌ NO CONSENSUS — Manual review recommended`;
+      consensusEl.innerHTML = `FINAL DECISION: <strong>${finalPrediction.toUpperCase()}</strong>`;
     }
   }
 
   // Features
   if (firstResult && firstResult.feature_summary) {
-    const grid2 = document.getElementById("featuresGrid");
-    grid2.innerHTML = "";
-    Object.entries(firstResult.feature_summary).forEach(([k, v]) => {
-      if (k !== "domain_age_days" && k !== "domain_exists" && k !== "rule_override") {
-        const div = document.createElement("div");
-        div.innerHTML = `${k.replace(/_/g, " ")}: <span>${v}</span>`;
-        grid2.appendChild(div);
-      }
-    });
+    document.getElementById("featuresGrid").innerHTML = featureTable(firstResult.feature_summary);
   }
 
   document.getElementById("resultPanel").style.display = "block";
+}
+
+function featureTable(features) {
+  const rows = Object.entries(features || {}).map(([key, value]) => `
+    <tr>
+      <td>${escapeHtml(key.replace(/_/g, " "))}</td>
+      <td>${escapeHtml(value)}</td>
+    </tr>
+  `).join("");
+
+  return `
+    <div class="table-responsive">
+      <table class="feature-table">
+        <thead>
+          <tr><th>Feature</th><th>Value</th></tr>
+        </thead>
+        <tbody>${rows || '<tr><td colspan="2">No features available</td></tr>'}</tbody>
+      </table>
+    </div>
+  `;
 }
 
 /* ============================================================

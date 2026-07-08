@@ -1,7 +1,29 @@
 /* ============================================================
    CONFIGURATION
    ============================================================ */
-const API_BASE = "http://127.0.0.1:8000";
+function resolveApiBase() {
+  if (window.API_BASE) return window.API_BASE;
+  const savedBase = localStorage.getItem("api_base");
+  if (savedBase) return savedBase;
+
+  const { protocol, hostname, port, origin } = window.location;
+  if (protocol === "file:" || port === "5500" || port === "3000") {
+    return `http://${hostname || "127.0.0.1"}:8000`;
+  }
+  return origin;
+}
+
+const API_BASE = resolveApiBase();
+
+async function readJson(response) {
+  const text = await response.text();
+  if (!text) return {};
+  try {
+    return JSON.parse(text);
+  } catch (error) {
+    throw new Error(`API returned an invalid response from ${response.url}. Check that the backend is running on ${API_BASE}.`);
+  }
+}
 
 /* ============================================================
    DOM REFERENCES
@@ -101,7 +123,7 @@ async function handleLogin(event) {
       body: JSON.stringify({ email, password }),
     });
 
-    const data = await response.json();
+    const data = await readJson(response);
 
     if (!response.ok) {
       showMessage(loginMessage, data.detail || "Login failed. Please try again.");
@@ -201,7 +223,7 @@ async function handleSignup(event) {
       }),
     });
 
-    const data = await response.json();
+    const data = await readJson(response);
 
     if (!response.ok) {
       showMessage(signupMessage, data.detail || "Signup failed. Please try again.");

@@ -11,6 +11,7 @@ from security import (
     verify_password,
     create_access_token,
     generate_api_key,
+    get_current_user_from_jwt,
 )
 
 router = APIRouter(tags=["Authentication"])
@@ -75,4 +76,15 @@ def login(user: UserLogin, db: Session = Depends(get_db)):
         "api_key": raw_api_key,
         "email": existing.email,
         "api_key_prefix": api_prefix,
+    }
+
+
+@router.get("/me")
+def me(current_user: User = Depends(get_current_user_from_jwt)):
+    return {
+        "email": current_user.email,
+        "api_key_prefix": current_user.api_key_prefix,
+        "usage_count": current_user.usage_count,
+        "created_at": current_user.created_at,
+        "last_login": current_user.last_login,
     }

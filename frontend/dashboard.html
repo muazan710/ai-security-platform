@@ -170,9 +170,15 @@
 
             <div id="domainStatus" class="domain-status"></div>
 
+            <div class="comparison-grid" id="comparisonGrid"></div>
+
+            <div class="consensus" id="consensus"></div>
+
             <div id="aiAgentBox" style="display:none;" class="ai-agent-box">
-              <div class="label">🤖 AI Security Agent <span class="badge-ai" id="aiSource">LLM</span></div>
+              <div class="label">🤖 AI Security Agent <span class="badge-ai" id="aiSource">Rule-Based</span></div>
               <div class="explanation" id="aiExplanation"></div>
+              <div class="details" id="aiRiskSummary"></div>
+              <div class="details" id="aiHumanReadable"></div>
             </div>
 
             <div id="threatIntelBox" style="display:none;" class="threat-intel-box">
@@ -181,13 +187,9 @@
               <div class="details" id="threatDetails"></div>
             </div>
 
-            <div class="comparison-grid" id="comparisonGrid"></div>
-
-            <div class="consensus" id="consensus"></div>
-
             <details style="margin-top: 16px;">
               <summary style="cursor:pointer; color: var(--muted); font-size: 13px;">📊 Show extracted features</summary>
-              <div class="features-grid" id="featuresGrid"></div>
+              <div id="featuresGrid"></div>
             </details>
           </div>
         </div>
@@ -212,6 +214,7 @@
                     <th>Prediction</th>
                     <th>Confidence</th>
                     <th>Time</th>
+                    <th>Details</th>
                   </tr>
                 </thead>
                 <tbody id="historyTable">

@@ -49,19 +49,37 @@ class PredictionHistory(Base):
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     
     url = Column(Text, nullable=False)
+    
+    # Final Result
     prediction = Column(String, nullable=False)
     confidence = Column(Float, nullable=False)
     risk_level = Column(String, nullable=False)
-    model_name = Column(String, nullable=False)
     
-    # Feature summary (stored as JSON string)
+    # AI Agent
+    ai_agent = Column(Text, nullable=True)
+    
+    # VirusTotal
+    virustotal = Column(Text, nullable=True)
+    
+    # Threat Intelligence
+    threat_intelligence = Column(Text, nullable=True)
+    
+    # Features
     feature_summary = Column(Text, nullable=True)
     
-    # Result details
+    # Domain Information
     domain_age = Column(Integer, nullable=True)
     domain_exists = Column(Boolean, default=True)
+    
+    # Rule Engine
     rule_override = Column(Boolean, default=False)
-    risk_factors = Column(Text, nullable=True)  # Store as JSON string
+    
+    # Risk Factors
+    risk_factors = Column(Text, nullable=True)
+    
+    # Extra Information
+    risk_score = Column(Integer, nullable=True)
+    scan_duration = Column(Float, nullable=True)
     
     # Timestamps
     created_at = Column(DateTime, default=datetime.utcnow)
@@ -80,6 +98,8 @@ class PredictionModelResult(Base):
     model_name = Column(String, nullable=False)
     prediction = Column(String, nullable=False)
     confidence = Column(Float, nullable=False)
+    
+    execution_time = Column(Float, nullable=True)
     
     feature_summary = Column(Text, nullable=True)
     domain_age = Column(Integer, nullable=True)

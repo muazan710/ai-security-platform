@@ -4,6 +4,7 @@ from jose import jwt
 import secrets
 import hashlib
 from fastapi import Header, HTTPException, Depends
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session
 
 from database import get_db
@@ -24,6 +25,8 @@ pwd_context = CryptContext(
     deprecated="auto"
 )
 
+bearer_scheme = HTTPBearer(auto_error=False)
+
 
 def hash_password(password: str):
     """Hash a password using bcrypt"""
@@ -42,14 +45,41 @@ def create_access_token(data: dict):
     expire = datetime.utcnow() + timedelta(
         minutes=ACCESS_TOKEN_EXPIRE_MINUTES
     )
-    
+
     to_encode.update({"exp": expire})
-    
+
     return jwt.encode(
         to_encode,
         SECRET_KEY,
         algorithm=ALGORITHM
     )
+
+
+def get_current_user_from_jwt(
+    credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme),
+    db: Session = Depends(get_db),
+):
+    if credentials is None or credentials.scheme.lower() != "bearer":
+        raise HTTPException(status_code=401, detail="Missing bearer token")
+
+    try:
+        payload = jwt.decode(
+            credentials.credentials,
+            SECRET_KEY,
+            algorithms=[ALGORITHM],
+        )
+        email = payload.get("sub")
+    except Exception:
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
+
+    if not email:
+        raise HTTPException(status_code=401, detail="Invalid token subject")
+
+    user = db.query(User).filter(User.email == email).first()
+    if not user or not user.is_active:
+        raise HTTPException(status_code=401, detail="User not found or inactive")
+
+    return user
 
 
 def generate_api_key():

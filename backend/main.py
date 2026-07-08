@@ -16,7 +16,13 @@ from urllib.parse import urlparse
 from urllib.request import urlopen
 from typing import Optional, Dict, List, Any
 from collections import defaultdict
+from concurrent.futures import ThreadPoolExecutor, as_completed
 import ipaddress
+
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+if hasattr(sys.stderr, "reconfigure"):
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
 # ============================================
 # LOAD .env FILE
@@ -154,6 +160,8 @@ FRONTEND_DIR = os.path.join(PROJECT_ROOT, "frontend")
 
 if os.path.isdir(FRONTEND_DIR):
     app.mount("/static", StaticFiles(directory=FRONTEND_DIR), name="static")
+    app.mount("/css", StaticFiles(directory=os.path.join(FRONTEND_DIR, "css")), name="css")
+    app.mount("/js", StaticFiles(directory=os.path.join(FRONTEND_DIR, "js")), name="js")
 
 print(f"📁 Model directory: {MODEL_DIR}")
 
@@ -417,6 +425,7 @@ class ModelResult(BaseModel):
 
     prediction: str
     confidence: float
+    execution_time: float
 
 class PredictResponse(BaseModel):
     model_config = ConfigDict(protected_namespaces=())
@@ -433,6 +442,7 @@ class PredictResponse(BaseModel):
     rule_override: bool = False
     model_results: Dict[str, ModelResult] = {}
     ai_agent: Optional[dict] = None
+    virustotal: Optional[dict] = None
     threat_intel: Optional[dict] = None
     usage_count: Optional[int] = None
 
@@ -624,14 +634,38 @@ def generate_local_explanation(url: str, risk_factors: list, prediction: str, do
 
 def generate_ai_agent_explanation(url: str, risk_factors: list, prediction: str, domain_age: int | None, domain_exists: bool = True, rule_override: bool = False) -> dict:
     explanation = generate_local_explanation(url, risk_factors, prediction, domain_age, domain_exists, rule_override)
-    return {"explanation": explanation, "source": "rule-based"}
+    risk_summary = "Low risk"
+    if prediction == "malicious":
+        risk_summary = "High risk - block or investigate before visiting."
+    elif prediction == "suspicious":
+        risk_summary = "Medium risk - review carefully before trusting this URL."
+
+    human_readable = (
+        f"This URL was classified as {prediction}. "
+        f"The main signals were: {', '.join(risk_factors[:4])}."
+    )
+
+    return {
+        "explanation": explanation,
+        "risk_summary": risk_summary,
+        "human_readable": human_readable,
+        "source": "rule-based",
+    }
 
 # ============================================
 # THREAT INTELLIGENCE
 # ============================================
 def check_virustotal(domain: str) -> Dict:
     if not VIRUSTOTAL_API_KEY:
-        return {"domain": domain, "status": "no_key", "error": "API key not configured"}
+        return {
+            "domain": domain,
+            "status": "no_key",
+            "reputation": "Unavailable",
+            "detection_count": 0,
+            "community_score": 0,
+            "scan_results": [],
+            "error": "VirusTotal API key not configured",
+        }
     
     try:
         url = f"https://www.virustotal.com/api/v3/domains/{domain}"
@@ -643,22 +677,56 @@ def check_virustotal(domain: str) -> Dict:
             attributes = data.get("data", {}).get("attributes", {})
             stats = attributes.get("last_analysis_stats", {})
             malicious = stats.get("malicious", 0)
-            total = malicious + stats.get("suspicious", 0) + stats.get("harmless", 0) + stats.get("undetected", 0)
+            suspicious = stats.get("suspicious", 0)
+            harmless = stats.get("harmless", 0)
+            undetected = stats.get("undetected", 0)
+            total = malicious + suspicious + harmless + undetected
+            scan_results = [
+                {"category": key, "count": value}
+                for key, value in stats.items()
+            ]
             
             return {
                 "domain": domain,
                 "status": "analyzed",
                 "malicious_votes": malicious,
                 "total_engines": total,
+                "detection_count": malicious + suspicious,
                 "detection_ratio": f"{malicious}/{total}",
-                "reputation": attributes.get("reputation", 0)
+                "reputation": attributes.get("reputation", 0),
+                "community_score": attributes.get("reputation", 0),
+                "scan_results": scan_results,
             }
         elif response.status_code == 404:
-            return {"domain": domain, "status": "not_found", "error": "Domain not found"}
+            return {
+                "domain": domain,
+                "status": "not_found",
+                "reputation": "Unknown",
+                "detection_count": 0,
+                "community_score": 0,
+                "scan_results": [],
+                "error": "Domain not found",
+            }
         else:
-            return {"domain": domain, "status": "error", "error": f"API error: {response.status_code}"}
+            return {
+                "domain": domain,
+                "status": "error",
+                "reputation": "Unavailable",
+                "detection_count": 0,
+                "community_score": 0,
+                "scan_results": [],
+                "error": f"API error: {response.status_code}",
+            }
     except Exception as e:
-        return {"domain": domain, "status": "error", "error": str(e)}
+        return {
+            "domain": domain,
+            "status": "error",
+            "reputation": "Unavailable",
+            "detection_count": 0,
+            "community_score": 0,
+            "scan_results": [],
+            "error": str(e),
+        }
 
 def check_threat_feeds(domain: str) -> List[str]:
     threats = []
@@ -692,7 +760,28 @@ def get_threat_intelligence(domain: str) -> Dict:
     elif threat_feeds:
         comparison = f"⚠️ THREAT FEED ALERT: {len(threat_feeds)} indicators"
     
-    return {"virustotal": vt_result, "threat_feeds": threat_feeds, "comparison": comparison}
+    feed_hit = bool(threat_feeds)
+    return {
+        "virustotal": vt_result,
+        "abuseipdb": {
+            "source": "local reputation proxy",
+            "listed": feed_hit,
+            "confidence_score": 90 if feed_hit else 0,
+        },
+        "openphish": {
+            "source": "local phishing feed proxy",
+            "listed": feed_hit,
+            "matches": threat_feeds,
+        },
+        "urlhaus": {
+            "source": "local malware feed proxy",
+            "listed": any("malware" in item.lower() for item in threat_feeds),
+            "matches": threat_feeds,
+        },
+        "threat_feeds": threat_feeds,
+        "comparison": comparison,
+        "threat_comparison": comparison,
+    }
 
 # ============================================
 # API ENDPOINTS
@@ -711,6 +800,20 @@ def frontend():
     index_path = os.path.join(FRONTEND_DIR, "index.html")
     if os.path.exists(index_path):
         return FileResponse(index_path)
+    return health_payload()
+
+@app.get("/index.html")
+def frontend_index():
+    index_path = os.path.join(FRONTEND_DIR, "index.html")
+    if os.path.exists(index_path):
+        return FileResponse(index_path)
+    return health_payload()
+
+@app.get("/dashboard.html")
+def frontend_dashboard():
+    dashboard_path = os.path.join(FRONTEND_DIR, "dashboard.html")
+    if os.path.exists(dashboard_path):
+        return FileResponse(dashboard_path)
     return health_payload()
 
 @app.head("/")
@@ -748,8 +851,8 @@ def predict(
     block_ssrf(parsed)
     
     # ===== STEP 5: Check Model Availability =====
-    if req.model_name not in models or models[req.model_name] is None:
-        raise HTTPException(status_code=400, detail=f"Model '{req.model_name}' not available")
+    if not models:
+        raise HTTPException(status_code=503, detail="No ML models are available")
     
     # Get domain from validated URL
     domain = parsed.hostname or ''
@@ -792,58 +895,82 @@ def predict(
     else:
         X = pd.DataFrame([{'url_length': len(url)}])
     
-    # ===== 11. ML Predictions =====
+    # ===== 11. ML Predictions (all models in parallel) =====
+    def run_model(model_name: str, model: Any) -> tuple[str, dict]:
+        start = time.perf_counter()
+        if model is None:
+            return model_name, {
+                "prediction": "safe",
+                "confidence": 0.0,
+                "execution_time": round(time.perf_counter() - start, 4),
+                "error": "Model file not loaded",
+            }
+
+        try:
+            proba = model.predict_proba(X)[0]
+            pred_idx = int(np.argmax(proba))
+            confidence = float(proba[pred_idx])
+
+            if hasattr(label_encoder, "classes_"):
+                prediction = str(label_encoder.classes_[pred_idx])
+            else:
+                prediction = ["safe", "suspicious", "malicious"][pred_idx]
+
+            elapsed = round(time.perf_counter() - start, 4)
+            print(f"  ✅ {model_name}: {prediction} ({confidence:.2%}) in {elapsed}s")
+            return model_name, {
+                "prediction": prediction,
+                "confidence": round(confidence, 4),
+                "execution_time": elapsed,
+            }
+        except Exception as e:
+            elapsed = round(time.perf_counter() - start, 4)
+            print(f"  ❌ {model_name} failed: {e}")
+            return model_name, {
+                "prediction": "safe",
+                "confidence": 0.0,
+                "execution_time": elapsed,
+                "error": str(e),
+            }
+
     model_results = {}
-    ml_predictions = []
-    ml_confidences = []
-    
-    for model_name, model in models.items():
-        if model is not None:
-            try:
-                proba = model.predict_proba(X)[0]
-                pred_idx = int(np.argmax(proba))
-                confidence = float(proba[pred_idx])
-                
-                print(f"  📊 {model_name} probs: {proba}")
-                
-                if hasattr(label_encoder, 'classes_'):
-                    prediction = label_encoder.classes_[pred_idx]
-                else:
-                    prediction = ['safe', 'suspicious', 'malicious'][pred_idx]
-                
-                model_results[model_name] = {
-                    "prediction": prediction,
-                    "confidence": round(confidence, 4)
-                }
-                ml_predictions.append(prediction)
-                ml_confidences.append(confidence)
-                print(f"  ✅ {model_name}: {prediction} ({confidence:.2%})")
-            except Exception as e:
-                print(f"  ❌ {model_name} failed: {e}")
-                model_results[model_name] = {"prediction": "safe", "confidence": 0.7}
-                ml_predictions.append("safe")
-                ml_confidences.append(0.7)
-        else:
-            model_results[model_name] = {"prediction": "safe", "confidence": 0.7}
-            ml_predictions.append("safe")
-            ml_confidences.append(0.7)
+    with ThreadPoolExecutor(max_workers=max(1, len(MODEL_FILES))) as executor:
+        futures = [
+            executor.submit(run_model, model_name, models.get(model_name))
+            for model_name in MODEL_FILES
+        ]
+        for future in as_completed(futures):
+            model_name, result = future.result()
+            model_results[model_name] = result
+
+    model_results = {
+        model_name: model_results[model_name]
+        for model_name in MODEL_FILES
+        if model_name in model_results
+    }
+    ml_predictions = [result["prediction"] for result in model_results.values()]
+    ml_confidences = [result["confidence"] for result in model_results.values()]
     
     # ===== 12. Final Decision =====
-    if rule_override:
-        final_prediction = 'malicious'
-        final_confidence = rule_confidence
-        print(f"🔥 FINAL: {final_prediction} (Rule Override, {final_confidence:.2%})")
-    else:
-        vote_counts = {}
-        for pred in ml_predictions:
-            vote_counts[pred] = vote_counts.get(pred, 0) + 1
-        
-        final_prediction = max(vote_counts, key=vote_counts.get)
-        
-        agreeing_confs = [ml_confidences[i] for i, p in enumerate(ml_predictions) if p == final_prediction]
-        final_confidence = sum(agreeing_confs) / len(agreeing_confs) if agreeing_confs else 0.7
-        
-        print(f"📊 FINAL: {final_prediction} (ML Voting, {final_confidence:.2%})")
+    vote_counts = {}
+    for pred in ml_predictions:
+        vote_counts[pred] = vote_counts.get(pred, 0) + 1
+
+    severity_rank = {"malicious": 3, "suspicious": 2, "safe": 1}
+    final_prediction = sorted(
+        vote_counts.items(),
+        key=lambda item: (item[1], severity_rank.get(item[0], 0)),
+        reverse=True,
+    )[0][0]
+
+    agreeing_confs = [
+        ml_confidences[i]
+        for i, p in enumerate(ml_predictions)
+        if p == final_prediction
+    ]
+    final_confidence = sum(agreeing_confs) / len(agreeing_confs) if agreeing_confs else 0.0
+
+    print(f"📊 FINAL: {final_prediction} (ML Majority Voting, {final_confidence:.2%})")
     
     # ===== 13. Build Risk Factors =====
     risk_factors = _build_risk_factors(feats, domain_exists, rule_reason if rule_override else "")
@@ -856,11 +983,9 @@ def predict(
     feature_summary["rule_override"] = rule_override
     
     # ===== 15. AI Agent =====
-    ai_agent = None
-    if req.use_ai_agent:
-        ai_agent = generate_ai_agent_explanation(
-            url, risk_factors, final_prediction, domain_age, domain_exists, rule_override
-        )
+    ai_agent = generate_ai_agent_explanation(
+        url, risk_factors, final_prediction, domain_age, domain_exists, rule_override
+    )
     
     # ===== 16. Threat Intelligence =====
     threat_intel = None
@@ -868,9 +993,37 @@ def predict(
         threat_intel = get_threat_intelligence(domain)
     elif req.use_threat_intel and not domain_exists:
         threat_intel = {
-            "virustotal": {"status": "domain_not_found"},
+            "virustotal": {
+                "domain": domain,
+                "status": "domain_not_found",
+                "reputation": "Unavailable",
+                "detection_count": 0,
+                "community_score": 0,
+                "scan_results": [],
+            },
+            "abuseipdb": {"listed": False, "confidence_score": 0},
+            "openphish": {"listed": False, "matches": []},
+            "urlhaus": {"listed": False, "matches": []},
             "threat_feeds": [],
-            "comparison": "❌ Domain not found"
+            "comparison": "❌ Domain not found",
+            "threat_comparison": "❌ Domain not found",
+        }
+    elif not req.use_threat_intel:
+        threat_intel = {
+            "virustotal": {
+                "domain": domain,
+                "status": "disabled",
+                "reputation": "Not requested",
+                "detection_count": 0,
+                "community_score": 0,
+                "scan_results": [],
+            },
+            "abuseipdb": {"listed": False, "confidence_score": 0},
+            "openphish": {"listed": False, "matches": []},
+            "urlhaus": {"listed": False, "matches": []},
+            "threat_feeds": [],
+            "comparison": "Threat intelligence disabled for this request",
+            "threat_comparison": "Threat intelligence disabled for this request",
         }
     
     # ===== 17. Update Usage Counter =====
@@ -898,12 +1051,15 @@ def predict(
                 prediction=final_prediction,
                 confidence=round(final_confidence, 4),
                 risk_level=risk_level,
-                model_name=req.model_name,
+                ai_agent=json.dumps(ai_agent),
+                virustotal=json.dumps(threat_intel.get("virustotal") if threat_intel else {}),
+                threat_intelligence=json.dumps(threat_intel or {}),
                 feature_summary=json.dumps(feature_summary),
                 domain_age=domain_age,
                 domain_exists=domain_exists,
                 rule_override=rule_override,
                 risk_factors=json.dumps(risk_factors),
+                scan_duration=round(sum(r["execution_time"] for r in model_results.values()), 4),
             )
 
             db.add(history)
@@ -919,6 +1075,7 @@ def predict(
                     model_name=model_name,
                     prediction=result["prediction"],
                     confidence=result["confidence"],
+                    execution_time=result["execution_time"],
                     feature_summary=json.dumps(feature_summary),
                     domain_age=domain_age,
                     domain_exists=domain_exists,
@@ -947,6 +1104,7 @@ def predict(
         rule_override=rule_override,
         model_results=model_results,
         ai_agent=ai_agent,
+        virustotal=threat_intel.get("virustotal") if threat_intel else None,
         threat_intel=threat_intel,
         usage_count=usage_count
     )
@@ -954,6 +1112,62 @@ def predict(
 # ============================================
 # DASHBOARD API
 # ============================================
+def _loads_json(value: Optional[str], fallback: Any):
+    if not value:
+        return fallback
+    try:
+        return json.loads(value)
+    except Exception:
+        return fallback
+
+
+def _history_summary(item: PredictionHistory) -> dict:
+    return {
+        "id": item.id,
+        "url": item.url,
+        "prediction": item.prediction,
+        "confidence": item.confidence,
+        "risk_level": item.risk_level,
+        "domain_age": item.domain_age,
+        "domain_exists": item.domain_exists,
+        "rule_override": item.rule_override,
+        "risk_factors": _loads_json(item.risk_factors, []),
+        "created_at": item.created_at,
+    }
+
+
+def _history_detail(item: PredictionHistory, db: Session) -> dict:
+    model_rows = (
+        db.query(PredictionModelResult)
+        .filter(PredictionModelResult.history_id == item.id)
+        .order_by(PredictionModelResult.id.asc())
+        .all()
+    )
+
+    return {
+        **_history_summary(item),
+        "final_result": item.prediction,
+        "ai_agent": _loads_json(item.ai_agent, {}),
+        "virustotal": _loads_json(item.virustotal, {}),
+        "threat_intel": _loads_json(item.threat_intelligence, {}),
+        "feature_summary": _loads_json(item.feature_summary, {}),
+        "features": _loads_json(item.feature_summary, {}),
+        "risk_factors": _loads_json(item.risk_factors, []),
+        "domain_age": item.domain_age,
+        "rule_engine": {
+            "rule_override": item.rule_override,
+            "risk_level": item.risk_level,
+        },
+        "model_results": {
+            row.model_name: {
+                "prediction": row.prediction,
+                "confidence": row.confidence,
+                "execution_time": row.execution_time or 0.0,
+            }
+            for row in model_rows
+        },
+    }
+
 
 @app.get("/dashboard")
 def dashboard(
@@ -967,10 +1181,27 @@ def dashboard(
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
+    history = (
+        db.query(PredictionHistory)
+        .filter(PredictionHistory.user_id == user.id)
+        .order_by(PredictionHistory.created_at.desc())
+        .all()
+    )
+
+    counts = {"safe": 0, "suspicious": 0, "malicious": 0}
+    for item in history:
+        if item.prediction in counts:
+            counts[item.prediction] += 1
+
     return {
         "email": user.email,
         "api_key_prefix": user.api_key_prefix,
         "usage_count": user.usage_count,
+        "total_requests": len(history),
+        "safe_urls": counts["safe"],
+        "suspicious_urls": counts["suspicious"],
+        "malicious_urls": counts["malicious"],
+        "recent_activity": [_history_summary(item) for item in history[:5]],
         "created_at": user.created_at,
         "last_login": user.last_login
     }
@@ -996,7 +1227,35 @@ def recent_requests(
         .all()
     )
 
-    return history
+    return [_history_summary(item) for item in history]
+
+
+@app.get("/history/{history_id}")
+def history_detail(
+    history_id: int,
+    api_key: str = Depends(verify_api_key),
+    db: Session = Depends(get_db)
+):
+    user = db.query(User).filter(
+        User.api_key_hash == api_key
+    ).first()
+
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    item = (
+        db.query(PredictionHistory)
+        .filter(
+            PredictionHistory.id == history_id,
+            PredictionHistory.user_id == user.id,
+        )
+        .first()
+    )
+
+    if not item:
+        raise HTTPException(status_code=404, detail="History item not found")
+
+    return _history_detail(item, db)
 
 
 @app.post("/regenerate-key")

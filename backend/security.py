@@ -3,6 +3,7 @@ from passlib.context import CryptContext
 from jose import jwt
 import secrets
 import hashlib
+import os
 from fastapi import Header, HTTPException, Depends
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session
@@ -13,9 +14,9 @@ from models import User
 # ============================================
 # CONFIGURATION
 # ============================================
-SECRET_KEY = "CHANGE_THIS_TO_A_RANDOM_SECRET_KEY"
+SECRET_KEY = os.getenv("SECRET_KEY", "dev-only-change-me")
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 60
+ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "60"))
 
 # ============================================
 # PASSWORD HASHING
@@ -106,9 +107,10 @@ def verify_api_key(
     Verify API key from request header
     Returns the hashed API key if valid, raises HTTPException if invalid
     """
-    key_hash = hashlib.sha256(
-        x_api_key.encode()
-    ).hexdigest()
+    if not x_api_key or not x_api_key.startswith("sk_live_"):
+        raise HTTPException(status_code=401, detail="Invalid API Key")
+
+    key_hash = hashlib.sha256(x_api_key.encode()).hexdigest()
     
     user = db.query(User).filter(
         User.api_key_hash == key_hash
@@ -124,6 +126,12 @@ def verify_api_key(
         raise HTTPException(
             status_code=403,
             detail="User account is disabled"
+        )
+
+    if not user.email_verified:
+        raise HTTPException(
+            status_code=403,
+            detail="Email verification required"
         )
     
     return key_hash
@@ -137,9 +145,10 @@ def verify_admin_api_key(
     Verify admin API key - requires admin role
     Returns the hashed API key if valid, raises HTTPException if invalid
     """
-    key_hash = hashlib.sha256(
-        x_api_key.encode()
-    ).hexdigest()
+    if not x_api_key or not x_api_key.startswith("sk_live_"):
+        raise HTTPException(status_code=401, detail="Invalid API Key")
+
+    key_hash = hashlib.sha256(x_api_key.encode()).hexdigest()
     
     user = db.query(User).filter(
         User.api_key_hash == key_hash
@@ -155,6 +164,12 @@ def verify_admin_api_key(
         raise HTTPException(
             status_code=403,
             detail="User account is disabled"
+        )
+
+    if not user.email_verified:
+        raise HTTPException(
+            status_code=403,
+            detail="Email verification required"
         )
     
     if not user.is_admin:
@@ -176,16 +191,17 @@ def verify_api_key_optional(
     """
     if x_api_key is None:
         return None
-    
-    key_hash = hashlib.sha256(
-        x_api_key.encode()
-    ).hexdigest()
+
+    if not x_api_key.startswith("sk_live_"):
+        return None
+
+    key_hash = hashlib.sha256(x_api_key.encode()).hexdigest()
     
     user = db.query(User).filter(
         User.api_key_hash == key_hash
     ).first()
     
-    if not user or not user.is_active:
+    if not user or not user.is_active or not user.email_verified:
         return None
     
     return key_hash
@@ -199,9 +215,10 @@ def get_user_from_api_key(
     Get user object from API key
     Returns the User object if valid, raises HTTPException if invalid
     """
-    key_hash = hashlib.sha256(
-        x_api_key.encode()
-    ).hexdigest()
+    if not x_api_key or not x_api_key.startswith("sk_live_"):
+        raise HTTPException(status_code=401, detail="Invalid API Key")
+
+    key_hash = hashlib.sha256(x_api_key.encode()).hexdigest()
     
     user = db.query(User).filter(
         User.api_key_hash == key_hash
@@ -217,6 +234,12 @@ def get_user_from_api_key(
         raise HTTPException(
             status_code=403,
             detail="User account is disabled"
+        )
+
+    if not user.email_verified:
+        raise HTTPException(
+            status_code=403,
+            detail="Email verification required"
         )
     
     return user

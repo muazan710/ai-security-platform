@@ -1,0 +1,49 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: aisecurity_test
+          POSTGRES_USER: aisecurity
+          POSTGRES_PASSWORD: aisecurity_password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U aisecurity -d aisecurity_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgresql://aisecurity:aisecurity_password@localhost:5432/aisecurity_test
+      SECRET_KEY: ci-secret
+      APP_VERSION: ci
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install backend dependencies
+        run: pip install -r backend/requirements.txt pytest
+      - name: Syntax check
+        run: python -m py_compile backend/*.py
+      - name: Import app
+        working-directory: backend
+        run: python -c "import main; print(main.health_payload()['version'])"
+
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build backend image
+        run: docker build -f backend/Dockerfile -t ai-security-backend .
+      - name: Build frontend image
+        run: docker build -f frontend/Dockerfile -t ai-security-frontend .

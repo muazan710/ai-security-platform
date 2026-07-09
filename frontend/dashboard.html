@@ -36,7 +36,7 @@
         <button class="btn-logout" onclick="handleLogout()">
           <span>🚪</span> Logout
         </button>
-        <p class="sidebar-version">v2.0.0</p>
+        <p class="sidebar-version" id="backendVersion">Version loading...</p>
       </div>
     </aside>
 
@@ -125,6 +125,10 @@
               <div class="profile-item">
                 <label>Account Created</label>
                 <span id="profileCreated">-</span>
+              </div>
+              <div class="profile-item">
+                <label>Email Verification</label>
+                <span id="profileEmailVerified">-</span>
               </div>
             </div>
           </div>

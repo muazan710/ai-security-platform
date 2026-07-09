@@ -11,8 +11,11 @@ scikit-learn==1.9.0
 xgboost==3.3.0
 pydantic==2.10.4
 SQLAlchemy==2.0.36
+alembic==1.14.0
+psycopg2-binary==2.9.10
 passlib[bcrypt]==1.7.4
 bcrypt==4.0.1
 python-jose[cryptography]==3.3.0
 python-multipart==0.0.20
 email-validator==2.2.0
+sib-api-v3-sdk==7.6.0

@@ -7,7 +7,7 @@ function resolveApiBase() {
   if (savedBase) return savedBase;
 
   const { protocol, hostname, port, origin } = window.location;
-  if (protocol === "file:" || port === "5500" || port === "3000") {
+  if (protocol === "file:" || port === "5500" || port === "3000" || port === "8080") {
     return `http://${hostname || "127.0.0.1"}:8000`;
   }
   return origin;
@@ -145,6 +145,7 @@ async function loadDashboard() {
     document.getElementById("profileUsage").textContent = data.total_requests ?? data.usage_count ?? 0;
     document.getElementById("profileLastLogin").textContent = data.last_login ? new Date(data.last_login).toLocaleString() : "-";
     document.getElementById("profileCreated").textContent = data.created_at ? new Date(data.created_at).toLocaleString() : "-";
+    document.getElementById("profileEmailVerified").textContent = data.email_verified ? "Verified" : "Not verified";
 
     updateUserInfo(data);
 
@@ -152,6 +153,20 @@ async function loadDashboard() {
 
   } catch (error) {
     console.error("Dashboard error:", error);
+  }
+}
+
+async function loadBackendVersion() {
+  const versionEl = document.getElementById("backendVersion");
+  if (!versionEl) return;
+
+  try {
+    const response = await fetch(`${API_BASE}/health`);
+    if (!response.ok) throw new Error("Health endpoint unavailable");
+    const data = await readJson(response);
+    versionEl.textContent = data.version ? `v${data.version}` : "Version unavailable";
+  } catch (error) {
+    versionEl.textContent = "Version unavailable";
   }
 }
 
@@ -693,6 +708,8 @@ document.getElementById("urlInput").addEventListener("keydown", (e) => {
    ============================================================ */
 document.addEventListener("DOMContentLoaded", () => {
   if (!checkAuth()) return;
+
+  loadBackendVersion();
 
   // Load dashboard by default
   navigateTo("dashboard");

@@ -214,7 +214,8 @@ body {
 .form-options {
   display: flex;
   align-items: center;
-  justify-content: flex-start;
+  justify-content: space-between;
+  gap: 12px;
 }
 
 .remember-me {
@@ -264,6 +265,26 @@ body {
   opacity: 0.6;
   cursor: not-allowed;
   transform: none;
+}
+
+.link-button {
+  border: none;
+  background: transparent;
+  color: var(--accent);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 0;
+}
+
+.link-button:hover {
+  color: var(--accent-hover);
+}
+
+.link-button.full-width {
+  width: 100%;
+  padding: 2px 0 0;
+  text-align: center;
 }
 
 /* ============================================================

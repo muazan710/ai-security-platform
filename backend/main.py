@@ -9,9 +9,9 @@ import time
 import socket
 import re
 import requests
-import subprocess
 from dotenv import load_dotenv
 from datetime import datetime, timezone
+from pathlib import Path
 from urllib.parse import urlparse
 from urllib.request import urlopen
 from typing import Optional, Dict, List, Any
@@ -27,7 +27,7 @@ if hasattr(sys.stderr, "reconfigure"):
 # ============================================
 # LOAD .env FILE
 # ============================================
-load_dotenv()
+load_dotenv(Path(__file__).resolve().parent / ".env")
 
 # ============================================
 # API KEYS
@@ -35,6 +35,8 @@ load_dotenv()
 VIRUSTOTAL_API_KEY = os.getenv("VIRUSTOTAL_API_KEY", "")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
+BREVO_API_KEY = os.getenv("BREVO_API_KEY", "")
+APP_VERSION = os.getenv("APP_VERSION", "2.0.0")
 
 print("=" * 50)
 print("🔑 API Key Status:")
@@ -51,11 +53,12 @@ try:
 except ImportError:
     print("⚠️ Warning: joblib/numpy/pandas not installed")
 
-from fastapi import FastAPI, HTTPException, Response, Depends
+from fastapi import FastAPI, HTTPException, Response, Depends, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, ConfigDict, Field
+from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 try:
@@ -68,7 +71,7 @@ except ImportError:
 # ============================================
 # DATABASE, AUTH AND SECURITY IMPORTS
 # ============================================
-from database import Base, engine, get_db
+from database import get_db
 from auth import router as auth_router
 from security import verify_api_key, generate_api_key
 from models import User, PredictionHistory, PredictionModelResult
@@ -130,25 +133,37 @@ except ImportError:
 app = FastAPI(
     title="AI Security Intelligence Platform API",
     description="ML-based URL analysis with AI Agent & Threat Intelligence",
-    version="2.0.0",
+    version=APP_VERSION,
 )
+
+cors_origins = [
+    origin.strip()
+    for origin in os.getenv("CORS_ORIGINS", "*").split(",")
+    if origin.strip()
+]
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=cors_origins,
     allow_methods=["GET", "POST"],
     allow_headers=["*"],
 )
 
-# ============================================
-# DATABASE INITIALIZATION
-# ============================================
-Base.metadata.create_all(bind=engine)
+
+@app.middleware("http")
+async def add_security_headers(request: Request, call_next):
+    response = await call_next(request)
+    response.headers.setdefault("X-Content-Type-Options", "nosniff")
+    response.headers.setdefault("X-Frame-Options", "DENY")
+    response.headers.setdefault("Referrer-Policy", "no-referrer")
+    response.headers.setdefault("Permissions-Policy", "geolocation=(), microphone=(), camera=()")
+    return response
 
 # ============================================
 # ROUTER REGISTRATION
 # ============================================
 app.include_router(auth_router)
+app.include_router(auth_router, prefix="/auth")
 
 # ============================================
 # MODEL LOADING
@@ -315,6 +330,12 @@ def validate_url(url: str):
             status_code=400,
             detail="URL is required."
         )
+
+    if len(url) > 2048:
+        raise HTTPException(status_code=400, detail="URL is too long.")
+
+    if any(char.isspace() for char in url):
+        raise HTTPException(status_code=400, detail="URL cannot contain whitespace.")
     
     parsed = urlparse(url)
     
@@ -329,6 +350,29 @@ def validate_url(url: str):
             status_code=400,
             detail="Invalid URL."
         )
+
+    if parsed.username or parsed.password:
+        raise HTTPException(status_code=400, detail="URLs with embedded credentials are not allowed.")
+
+    try:
+        parsed.port
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid URL port.")
+
+    host = parsed.hostname or ""
+    if not host or len(host) > 253:
+        raise HTTPException(status_code=400, detail="Invalid hostname.")
+
+    try:
+        host.encode("idna").decode("ascii")
+    except UnicodeError:
+        raise HTTPException(status_code=400, detail="Invalid hostname.")
+
+    if host.endswith(".") or ".." in host:
+        raise HTTPException(status_code=400, detail="Invalid hostname.")
+
+    if not re.match(r"^[A-Za-z0-9.-]+$", host):
+        raise HTTPException(status_code=400, detail="Invalid hostname.")
     
     return parsed
 
@@ -340,42 +384,57 @@ def block_ssrf(parsed):
     Block localhost and private/internal IPs to prevent SSRF attacks.
     """
     host = parsed.hostname
-    
+
     if not host:
         raise HTTPException(
             status_code=400,
             detail="Invalid hostname."
         )
-    
-    # Block localhost
-    if host.lower() == "localhost":
+
+    host_lower = host.lower().strip(".")
+
+    if host_lower in {"localhost", "localhost.localdomain"} or host_lower.endswith(".local"):
         raise HTTPException(
             status_code=403,
-            detail="localhost is not allowed."
+            detail="Internal hostnames are not allowed."
         )
-    
+
     try:
-        # Resolve hostname to IP address
+        direct_ip = ipaddress.ip_address(host_lower)
+        if (
+            direct_ip.is_private
+            or direct_ip.is_loopback
+            or direct_ip.is_link_local
+            or direct_ip.is_reserved
+            or direct_ip.is_multicast
+            or direct_ip.is_unspecified
+        ):
+            raise HTTPException(
+                status_code=403,
+                detail="Private/Internal IPs are not allowed."
+            )
+    except ValueError:
+        pass
+
+    try:
         ip = ipaddress.ip_address(socket.gethostbyname(host))
-        
-        # Check if IP is private, loopback, link-local, reserved, or multicast
+
         if (
             ip.is_private
             or ip.is_loopback
             or ip.is_link_local
             or ip.is_reserved
             or ip.is_multicast
+            or ip.is_unspecified
         ):
             raise HTTPException(
                 status_code=403,
                 detail="Private/Internal IPs are not allowed."
             )
-            
+
     except ValueError:
-        # Not a valid IP address (hostname like 'google.com')
         pass
     except socket.gaierror:
-        # DNS resolution failed - will be caught later
         pass
 
 # ============================================
@@ -533,6 +592,9 @@ def _domain_age_days(url: str, check_exists: bool = True) -> int | None:
 # OTHER HELPERS
 # ============================================
 def _normalize_url(url: str) -> str:
+    url = url.strip()
+    if url.startswith("//"):
+        raise HTTPException(status_code=400, detail="URL scheme is required.")
     if "://" not in url:
         return "https://" + url
     return url
@@ -649,6 +711,19 @@ def generate_ai_agent_explanation(url: str, risk_factors: list, prediction: str,
         "explanation": explanation,
         "risk_summary": risk_summary,
         "human_readable": human_readable,
+        "confidence_note": "Confidence is based on majority voting across loaded ML models plus URL, domain, and rule-engine signals.",
+        "mitre_attack": ["TA0001 Initial Access", "T1566 Phishing"] if prediction in {"malicious", "suspicious"} else [],
+        "owasp_mapping": ["SSRF protection", "Untrusted URL input validation"],
+        "incident_response": [
+            "Do not visit the URL or enter credentials.",
+            "Capture the URL, timestamp, and affected user context.",
+            "Block the domain at DNS or proxy controls if confirmed malicious.",
+        ] if prediction in {"malicious", "suspicious"} else ["Continue monitoring and keep browser and endpoint protections enabled."],
+        "recommendations": [
+            "Verify the destination through an independent trusted channel.",
+            "Use a password manager to detect lookalike domains.",
+            "Report suspicious links to the security team.",
+        ],
         "source": "rule-based",
     }
 
@@ -786,10 +861,27 @@ def get_threat_intelligence(domain: str) -> Dict:
 # ============================================
 # API ENDPOINTS
 # ============================================
-def health_payload():
+def health_payload(db: Session | None = None):
+    database_status = "not_checked"
+    if db is not None:
+        try:
+            db.execute(text("SELECT 1"))
+            database_status = "ok"
+        except Exception as exc:
+            database_status = f"error: {exc.__class__.__name__}"
+
     return {
         "status": "ok",
-        "version": "2.0.0",
+        "version": APP_VERSION,
+        "backend_version": APP_VERSION,
+        "database": database_status,
+        "loaded_ml_models": [name for name, model in models.items() if model is not None],
+        "services": {
+            "virustotal": "configured" if VIRUSTOTAL_API_KEY else "not_configured",
+            "openai": "configured" if OPENAI_API_KEY else "not_configured",
+            "gemini": "configured" if GEMINI_API_KEY else "not_configured",
+            "brevo": "configured" if BREVO_API_KEY else "not_configured",
+        },
         "apis": {"virustotal": bool(VIRUSTOTAL_API_KEY)},
         "available_models": list(models.keys()),
         "feature_columns": FEATURE_COLUMNS
@@ -822,8 +914,8 @@ def frontend_head():
 
 @app.get("/api/health")
 @app.get("/health")
-def health():
-    return health_payload()
+def health(db: Session = Depends(get_db)):
+    return health_payload(db)
 
 @app.get("/favicon.ico")
 def favicon():
@@ -1234,7 +1326,9 @@ def dashboard(
         "malicious_urls": counts["malicious"],
         "recent_activity": [_history_summary(item) for item in history[:5]],
         "created_at": user.created_at,
-        "last_login": user.last_login
+        "last_login": user.last_login,
+        "email_verified": user.email_verified,
+        "is_active": user.is_active,
     }
 
 
@@ -1305,6 +1399,7 @@ def regenerate_api_key(
 
     user.api_key_hash = key_hash
     user.api_key_prefix = key_prefix
+    user.api_key_created_at = datetime.utcnow()
 
     db.commit()
 

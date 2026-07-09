@@ -1,9 +1,18 @@
 name: Notify Private Deploy Repo
 
+# Push → repository_dispatch to private control repo (~5 seconds).
+# Configure in Settings → Secrets and variables → Actions:
+#   Secret   MY_DEPLOYMENT_TOKEN (or DEPLOY_DISPATCH_TOKEN) — PAT with repo + workflow
+#   Variable DEPLOY_OWNER_REPO → AhtishamHussain/personal_remote
+
 on:
   push:
     branches: [main]
   workflow_dispatch:
+
+concurrency:
+  group: notify-deploy-${{ github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
@@ -11,36 +20,41 @@ permissions:
 jobs:
   dispatch:
     runs-on: ubuntu-latest
+    timeout-minutes: 2
     steps:
       - name: Trigger private repository deploy workflow
         env:
           DISPATCH_TOKEN: ${{ secrets.MY_DEPLOYMENT_TOKEN }}
-          PRIVATE_REPO: AhtishamHussain/ai-security-platform
-          PROJECT_REPO: muazan710/ai-security-platform
-          PROJECT_SHA: ${{ github.sha }}
-          PROJECT_REF: ${{ github.ref_name }}
+          DEPLOY_REPO: ${{ vars.DEPLOY_OWNER_REPO }}
+          EVENT_TYPE: ${{ vars.DEPLOY_EVENT_TYPE || 'app_updated' }}
         run: |
           set -euo pipefail
           if [ -z "${DISPATCH_TOKEN}" ]; then
-            echo "::error::Missing MY_DEPLOYMENT_TOKEN secret in public repo."
+            echo "::error::Missing MY_DEPLOYMENT_TOKEN (or DEPLOY_DISPATCH_TOKEN) secret."
+            exit 1
+          fi
+          if [ -z "${DEPLOY_REPO}" ]; then
+            echo "::error::Set DEPLOY_OWNER_REPO variable to AhtishamHussain/personal_remote"
             exit 1
           fi
 
-          payload="$(cat <<EOF
-          {
-            "event_type": "app_updated",
-            "client_payload": {
-              "repository": "${PROJECT_REPO}",
-              "ref": "${PROJECT_REF}",
-              "sha": "${PROJECT_SHA}"
-            }
-          }
-          EOF
-          )"
+          payload="$(jq -n \
+            --arg event_type "${EVENT_TYPE}" \
+            --arg repository "${{ github.repository }}" \
+            --arg ref "${{ github.ref_name }}" \
+            --arg sha "${{ github.sha }}" \
+            '{event_type: $event_type, client_payload: {repository: $repository, ref: $ref, sha: $sha}}')"
 
-          curl -fsSL -X POST \
+          http_code="$(curl -sS -o /tmp/dispatch-response.txt -w "%{http_code}" -X POST \
             -H "Accept: application/vnd.github+json" \
             -H "Authorization: Bearer ${DISPATCH_TOKEN}" \
             -H "X-GitHub-Api-Version: 2022-11-28" \
-            "https://api.github.com/repos/${PRIVATE_REPO}/dispatches" \
-            -d "${payload}"
+            "https://api.github.com/repos/${DEPLOY_REPO}/dispatches" \
+            -d "${payload}")"
+
+          if [ "${http_code}" != "204" ]; then
+            echo "::error::Dispatch failed HTTP ${http_code}"
+            cat /tmp/dispatch-response.txt || true
+            exit 1
+          fi
+          echo "Dispatched ${EVENT_TYPE} to ${DEPLOY_REPO} for ${{ github.sha }}"

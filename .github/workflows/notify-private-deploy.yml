@@ -25,18 +25,15 @@ jobs:
       - name: Trigger private repository deploy workflow
         env:
           DISPATCH_TOKEN: ${{ secrets.MY_DEPLOYMENT_TOKEN }}
-          DEPLOY_REPO: ${{ vars.DEPLOY_OWNER_REPO }}
+          DEPLOY_REPO: ${{ vars.DEPLOY_OWNER_REPO || 'AhtishamHussain/personal_remote' }}
           EVENT_TYPE: ${{ vars.DEPLOY_EVENT_TYPE || 'app_updated' }}
         run: |
           set -euo pipefail
           if [ -z "${DISPATCH_TOKEN}" ]; then
-            echo "::error::Missing MY_DEPLOYMENT_TOKEN (or DEPLOY_DISPATCH_TOKEN) secret."
+            echo "::error::Missing MY_DEPLOYMENT_TOKEN secret."
             exit 1
           fi
-          if [ -z "${DEPLOY_REPO}" ]; then
-            echo "::error::Set DEPLOY_OWNER_REPO variable to AhtishamHussain/personal_remote"
-            exit 1
-          fi
+          DEPLOY_REPO="${DEPLOY_REPO:-AhtishamHussain/personal_remote}"
 
           payload="$(jq -n \
             --arg event_type "${EVENT_TYPE}" \

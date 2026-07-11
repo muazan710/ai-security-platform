@@ -80,6 +80,15 @@ function getFieldValue(id) {
   return document.getElementById(id).value.trim();
 }
 
+function passwordError(password) {
+  if (password.length < 8) return "Password must be at least 8 characters.";
+  if (!/[A-Z]/.test(password)) return "Password must include one uppercase letter.";
+  if (!/[a-z]/.test(password)) return "Password must include one lowercase letter.";
+  if (!/\d/.test(password)) return "Password must include one number.";
+  if (!/[!@#$%^&*(),.?\":{}|<>]/.test(password)) return "Password must include one special character.";
+  return "";
+}
+
 /* ============================================================
    LOGIN
    ============================================================ */
@@ -182,8 +191,9 @@ async function handleSignup(event) {
     return;
   }
 
-  if (password.length < 8) {
-    showMessage(signupMessage, "Password must be at least 8 characters.");
+  const passwordValidationError = passwordError(password);
+  if (passwordValidationError) {
+    showMessage(signupMessage, passwordValidationError);
     return;
   }
 
@@ -228,24 +238,15 @@ async function handleSignup(event) {
 /* ============================================================
    KEYBOARD SHORTCUTS
    ============================================================ */
-document.getElementById("loginPassword").addEventListener("keydown", (event) => {
-  if (event.key === "Enter") {
-    event.preventDefault();
-    handleLogin(event);
-  }
-});
+function initialiseAuthPage() {
+  // Register handlers in JavaScript instead of relying on inline HTML handlers.
+  // This ensures the buttons work when the page is served with stricter security rules.
+  document.querySelectorAll(".auth-tab").forEach((button) => {
+    button.addEventListener("click", () => switchTab(button.dataset.tab));
+  });
+  loginForm.addEventListener("submit", handleLogin);
+  signupForm.addEventListener("submit", handleSignup);
 
-document.getElementById("signupConfirmPassword").addEventListener("keydown", (event) => {
-  if (event.key === "Enter") {
-    event.preventDefault();
-    handleSignup(event);
-  }
-});
-
-/* ============================================================
-   PAGE LOAD
-   ============================================================ */
-document.addEventListener("DOMContentLoaded", () => {
   loadBackendVersion();
 
   const rememberMe = localStorage.getItem("remember_me");
@@ -256,11 +257,13 @@ document.addEventListener("DOMContentLoaded", () => {
     document.getElementById("rememberMe").checked = true;
   }
 
-  const apiKey = localStorage.getItem("api_key");
-  if (apiKey && !window.location.pathname.includes("dashboard.html")) {
-    window.location.href = "dashboard.html";
-  }
-});
+}
+
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", initialiseAuthPage);
+} else {
+  initialiseAuthPage();
+}
 
 /* ============================================================
    GLOBALS

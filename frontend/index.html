@@ -17,12 +17,12 @@
 
       <!-- Tabs -->
       <div class="auth-tabs">
-        <button class="auth-tab active" data-tab="login" onclick="switchTab('login')">Login</button>
-        <button class="auth-tab" data-tab="signup" onclick="switchTab('signup')">Sign Up</button>
+        <button type="button" class="auth-tab active" data-tab="login">Login</button>
+        <button type="button" class="auth-tab" data-tab="signup">Sign Up</button>
       </div>
 
       <!-- Login Form -->
-      <form class="auth-form active" id="loginForm" onsubmit="handleLogin(event)">
+      <form class="auth-form active" id="loginForm" novalidate>
         <div class="form-group">
           <label for="loginEmail">Email</label>
           <input type="email" id="loginEmail" placeholder="you@example.com" required>
@@ -45,7 +45,7 @@
       </form>
 
       <!-- Signup Form -->
-      <form class="auth-form" id="signupForm" onsubmit="handleSignup(event)">
+      <form class="auth-form" id="signupForm" novalidate>
         <div class="form-group">
           <label for="signupName">Full Name</label>
           <input type="text" id="signupName" placeholder="John Doe" required>

@@ -1,4 +1,5 @@
-FROM python:3.11-slim
+# scikit-learn 1.9 pulls scipy 1.18 which requires Python >=3.12
+FROM python:3.12-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1

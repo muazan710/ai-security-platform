@@ -1327,7 +1327,6 @@ def dashboard(
         "recent_activity": [_history_summary(item) for item in history[:5]],
         "created_at": user.created_at,
         "last_login": user.last_login,
-        "email_verified": user.email_verified,
         "is_active": user.is_active,
     }
 

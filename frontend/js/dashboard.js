@@ -145,7 +145,6 @@ async function loadDashboard() {
     document.getElementById("profileUsage").textContent = data.total_requests ?? data.usage_count ?? 0;
     document.getElementById("profileLastLogin").textContent = data.last_login ? new Date(data.last_login).toLocaleString() : "-";
     document.getElementById("profileCreated").textContent = data.created_at ? new Date(data.created_at).toLocaleString() : "-";
-    document.getElementById("profileEmailVerified").textContent = data.email_verified ? "Verified" : "Not verified";
 
     updateUserInfo(data);
 

@@ -128,12 +128,6 @@ def verify_api_key(
             detail="User account is disabled"
         )
 
-    if not user.email_verified:
-        raise HTTPException(
-            status_code=403,
-            detail="Email verification required"
-        )
-    
     return key_hash
 
 
@@ -166,12 +160,6 @@ def verify_admin_api_key(
             detail="User account is disabled"
         )
 
-    if not user.email_verified:
-        raise HTTPException(
-            status_code=403,
-            detail="Email verification required"
-        )
-    
     if not user.is_admin:
         raise HTTPException(
             status_code=403,
@@ -201,7 +189,7 @@ def verify_api_key_optional(
         User.api_key_hash == key_hash
     ).first()
     
-    if not user or not user.is_active or not user.email_verified:
+    if not user or not user.is_active:
         return None
     
     return key_hash
@@ -236,10 +224,4 @@ def get_user_from_api_key(
             detail="User account is disabled"
         )
 
-    if not user.email_verified:
-        raise HTTPException(
-            status_code=403,
-            detail="Email verification required"
-        )
-    
     return user

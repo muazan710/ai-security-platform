@@ -30,12 +30,8 @@ async function readJson(response) {
    ============================================================ */
 const loginForm = document.getElementById("loginForm");
 const signupForm = document.getElementById("signupForm");
-const verifyForm = document.getElementById("verifyForm");
-const resetForm = document.getElementById("resetForm");
 const loginMessage = document.getElementById("loginMessage");
 const signupMessage = document.getElementById("signupMessage");
-const verifyMessage = document.getElementById("verifyMessage");
-const resetMessage = document.getElementById("resetMessage");
 
 /* ============================================================
    TAB SWITCHING
@@ -61,7 +57,7 @@ function showMessage(element, message, type = "error") {
 }
 
 function clearMessages() {
-  [loginMessage, signupMessage, verifyMessage, resetMessage].forEach((element) => {
+  [loginMessage, signupMessage].forEach((element) => {
     element.className = "form-message";
     element.textContent = "";
   });
@@ -82,14 +78,6 @@ function isValidEmail(email) {
 
 function getFieldValue(id) {
   return document.getElementById(id).value.trim();
-}
-
-function validateOtp(otp, messageElement) {
-  if (!/^\d{6}$/.test(otp)) {
-    showMessage(messageElement, "Please enter a 6-digit code.");
-    return false;
-  }
-  return true;
 }
 
 /* ============================================================
@@ -125,12 +113,6 @@ async function handleLogin(event) {
     const data = await readJson(response);
 
     if (!response.ok) {
-      if (response.status === 403) {
-        document.getElementById("verifyEmail").value = email;
-        showMessage(loginMessage, data.detail || "Please verify your email before logging in.");
-        setTimeout(() => switchTab("verify"), 900);
-        return;
-      }
       showMessage(loginMessage, data.detail || "Login failed. Please try again.");
       return;
     }
@@ -227,181 +209,19 @@ async function handleSignup(event) {
       return;
     }
 
-    showMessage(signupMessage, "Account created successfully. Enter the email code to finish setup.", "success");
-    document.getElementById("signupName").value = "";
-    document.getElementById("signupEmail").value = "";
-    document.getElementById("signupPassword").value = "";
-    document.getElementById("signupConfirmPassword").value = "";
-    document.getElementById("verifyEmail").value = email;
-    setTimeout(() => switchTab("verify"), 1500);
+    if (data.api_key) {
+      localStorage.setItem("api_key", data.api_key);
+    }
+    localStorage.setItem("user_email", email);
+    showMessage(signupMessage, data.message || "Account created successfully.", "success");
+    setTimeout(() => {
+      window.location.href = "dashboard.html";
+    }, 800);
   } catch (error) {
     showMessage(signupMessage, "Network error: " + error.message);
   } finally {
     submitBtn.disabled = false;
     submitBtn.textContent = "Create Account";
-  }
-}
-
-/* ============================================================
-   EMAIL VERIFICATION
-   ============================================================ */
-async function handleVerifyEmail(event) {
-  event.preventDefault();
-
-  const email = getFieldValue("verifyEmail");
-  const otp = getFieldValue("verifyOtp");
-  clearMessages();
-
-  if (!isValidEmail(email)) {
-    showMessage(verifyMessage, "Please enter a valid email address.");
-    return;
-  }
-
-  if (!validateOtp(otp, verifyMessage)) return;
-
-  const submitBtn = verifyForm.querySelector(".btn-primary");
-  submitBtn.disabled = true;
-  submitBtn.textContent = "Verifying...";
-
-  try {
-    const response = await fetch(`${API_BASE}/verify-email`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, otp }),
-    });
-    const data = await readJson(response);
-
-    if (!response.ok) {
-      showMessage(verifyMessage, data.detail || "Verification failed.");
-      return;
-    }
-
-    showMessage(verifyMessage, data.message || "Email verified successfully.", "success");
-    document.getElementById("loginEmail").value = email;
-    setTimeout(() => switchTab("login"), 1200);
-  } catch (error) {
-    showMessage(verifyMessage, "Network error: " + error.message);
-  } finally {
-    submitBtn.disabled = false;
-    submitBtn.textContent = "Verify Email";
-  }
-}
-
-async function handleResendOtp(event) {
-  event.preventDefault();
-
-  const email = getFieldValue("verifyEmail");
-  clearMessages();
-
-  if (!isValidEmail(email)) {
-    showMessage(verifyMessage, "Please enter a valid email address.");
-    return;
-  }
-
-  try {
-    const response = await fetch(`${API_BASE}/resend-otp`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email }),
-    });
-    const data = await readJson(response);
-
-    if (!response.ok) {
-      showMessage(verifyMessage, data.detail || "Could not resend the code.");
-      return;
-    }
-
-    showMessage(verifyMessage, data.message || "Code sent successfully.", "success");
-  } catch (error) {
-    showMessage(verifyMessage, "Network error: " + error.message);
-  }
-}
-
-/* ============================================================
-   PASSWORD RESET
-   ============================================================ */
-async function handleForgotPassword(event) {
-  event.preventDefault();
-
-  const email = getFieldValue("resetEmail");
-  clearMessages();
-
-  if (!isValidEmail(email)) {
-    showMessage(resetMessage, "Please enter a valid email address.");
-    return;
-  }
-
-  const button = document.getElementById("forgotPasswordButton");
-  button.disabled = true;
-  button.textContent = "Sending...";
-
-  try {
-    const response = await fetch(`${API_BASE}/forgot-password`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email }),
-    });
-    const data = await readJson(response);
-
-    if (!response.ok) {
-      showMessage(resetMessage, data.detail || "Could not send reset code.");
-      return;
-    }
-
-    showMessage(resetMessage, data.message || "Reset code sent successfully.", "success");
-  } catch (error) {
-    showMessage(resetMessage, "Network error: " + error.message);
-  } finally {
-    button.disabled = false;
-    button.textContent = "Send Reset Code";
-  }
-}
-
-async function handleResetPassword(event) {
-  event.preventDefault();
-
-  const email = getFieldValue("resetEmail");
-  const otp = getFieldValue("resetOtp");
-  const newPassword = getFieldValue("resetPassword");
-  clearMessages();
-
-  if (!isValidEmail(email)) {
-    showMessage(resetMessage, "Please enter a valid email address.");
-    return;
-  }
-
-  if (!validateOtp(otp, resetMessage)) return;
-
-  if (newPassword.length < 8) {
-    showMessage(resetMessage, "Password must be at least 8 characters.");
-    return;
-  }
-
-  const submitBtn = resetForm.querySelector("button[type='submit']");
-  submitBtn.disabled = true;
-  submitBtn.textContent = "Resetting...";
-
-  try {
-    const response = await fetch(`${API_BASE}/reset-password`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, otp, new_password: newPassword }),
-    });
-    const data = await readJson(response);
-
-    if (!response.ok) {
-      showMessage(resetMessage, data.detail || "Password reset failed.");
-      return;
-    }
-
-    showMessage(resetMessage, data.message || "Password changed successfully.", "success");
-    document.getElementById("loginEmail").value = email;
-    setTimeout(() => switchTab("login"), 1200);
-  } catch (error) {
-    showMessage(resetMessage, "Network error: " + error.message);
-  } finally {
-    submitBtn.disabled = false;
-    submitBtn.textContent = "Reset Password";
   }
 }
 
@@ -449,7 +269,3 @@ window.switchTab = switchTab;
 window.togglePassword = togglePassword;
 window.handleLogin = handleLogin;
 window.handleSignup = handleSignup;
-window.handleVerifyEmail = handleVerifyEmail;
-window.handleResendOtp = handleResendOtp;
-window.handleForgotPassword = handleForgotPassword;
-window.handleResetPassword = handleResetPassword;

@@ -700,17 +700,22 @@ document.addEventListener("DOMContentLoaded", () => {
   const guestActions = document.getElementById("guestActions");
   const logoutButton = document.getElementById("logoutButton");
   const signedIn = checkAuth();
+  document.body.classList.toggle("guest-view", !signedIn);
   signedInInfo.style.display = signedIn ? "flex" : "none";
   guestActions.style.display = signedIn ? "none" : "flex";
   if (logoutButton) logoutButton.style.display = signedIn ? "flex" : "none";
+  document.querySelector(".sidebar-nav").style.display = signedIn ? "flex" : "none";
   if (!signedIn) {
-    document.querySelectorAll('[data-section="dashboard"], [data-section="history"], [data-section="api-key"]').forEach((item) => {
-      item.style.display = "none";
-    });
+    // Navigation is available only after a user logs in.
+    document.querySelectorAll(".nav-item").forEach((item) => item.style.display = "none");
   }
 
   loadBackendVersion();
 
   // Open the public URL checker by default.
   navigateTo("analysis");
+  if (!signedIn) {
+    document.getElementById("pageTitle").textContent = "Digital Softs";
+    document.getElementById("pageSubtitle").textContent = "Smart URL Security Check";
+  }
 });

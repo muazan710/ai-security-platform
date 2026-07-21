@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Dashboard - AI Security Intelligence Platform</title>
+  <title>Digital Soft - URL Security Check</title>
   <link rel="stylesheet" href="css/dashboard.css">
 </head>
 <body>
@@ -11,15 +11,16 @@
     <!-- Sidebar -->
     <aside class="sidebar">
       <div class="sidebar-header">
-        <h2>🛡️ AI Security</h2>
-        <p class="sidebar-subtitle">Intelligence Platform</p>
+        <h2>Digital Soft Security</h2>
+        <img class="brand-logo" src="assets/digitalsofts-logo.png" alt="Digital Soft Private Limited">
+        <p class="sidebar-subtitle">URL Security Intelligence</p>
       </div>
       <nav class="sidebar-nav">
-        <a href="#" class="nav-item active" data-section="dashboard">
+        <a href="#" class="nav-item" data-section="dashboard">
           <span class="nav-icon">📊</span>
           Dashboard
         </a>
-        <a href="#" class="nav-item" data-section="analysis">
+        <a href="#" class="nav-item active" data-section="analysis">
           <span class="nav-icon">🔍</span>
           URL Analysis
         </a>
@@ -32,12 +33,6 @@
           API Key
         </a>
       </nav>
-      <div class="sidebar-footer">
-        <button class="btn-logout" onclick="handleLogout()">
-          <span>🚪</span> Logout
-        </button>
-        <p class="sidebar-version" id="backendVersion">Version loading...</p>
-      </div>
     </aside>
 
     <!-- Main Content -->
@@ -45,19 +40,23 @@
       <!-- Header -->
       <header class="main-header">
         <div class="header-left">
-          <h1 id="pageTitle">Dashboard</h1>
-          <p class="header-subtitle" id="pageSubtitle">Welcome back, <span id="userNameDisplay">User</span></p>
+          <h1 id="pageTitle">Check a URL before you open it</h1>
+          <p class="header-subtitle" id="pageSubtitle">Free URL safety analysis by Digital Soft</p>
         </div>
         <div class="header-right">
-          <div class="user-info">
+          <div class="user-info" id="signedInInfo">
             <span class="user-email" id="userEmailDisplay">user@example.com</span>
             <span class="user-badge">API: <span id="apiKeyPrefix">sk_live_****</span></span>
+          </div>
+          <div class="auth-actions" id="guestActions">
+            <a class="btn-secondary" href="auth.html">Login</a>
+            <a class="btn-primary" href="auth.html?tab=signup">Sign Up</a>
           </div>
         </div>
       </header>
 
       <!-- Dashboard Section -->
-      <section class="content-section active" id="section-dashboard">
+      <section class="content-section" id="section-dashboard">
         <div class="stats-grid">
           <div class="stat-card">
             <div class="stat-icon">📊</div>
@@ -132,7 +131,7 @@
       </section>
 
       <!-- Analysis Section -->
-      <section class="content-section" id="section-analysis">
+      <section class="content-section active" id="section-analysis">
         <div class="panel">
           <div class="panel-header">
             <h3>🔍 URL Analysis</h3>
@@ -158,6 +157,7 @@
               <span onclick="fillExample('https://helpdesk-truist.com')">active phishing</span>
               <span onclick="fillExample('https://deepl-fanyi.com')">malware</span>
             </div>
+            <p class="public-note">No login needed for a URL check. <a href="auth.html?tab=signup">Create an account</a> to receive and manage an API key.</p>
           </div>
         </div>
 

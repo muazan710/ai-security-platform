@@ -73,7 +73,7 @@ except ImportError:
 # ============================================
 from database import get_db
 from auth import router as auth_router
-from security import verify_api_key, generate_api_key
+from security import verify_api_key, verify_api_key_optional, generate_api_key
 from models import User, PredictionHistory, PredictionModelResult
 
 # ============================================
@@ -924,11 +924,14 @@ def favicon():
 @app.post("/predict")
 def predict(
     req: PredictRequest,
-    api_key: str = Depends(verify_api_key),
+    api_key: Optional[str] = Depends(verify_api_key_optional),
     db: Session = Depends(get_db)
 ):
     # ===== STEP 1: Check Rate Limit =====
-    check_rate_limit(api_key)
+    # Public URL checks do not need an API key. API users retain rate limiting
+    # and get their request saved to their personal history.
+    if api_key:
+        check_rate_limit(api_key)
     
     # ===== STEP 2: Normalize URL =====
     url = _normalize_url(req.url.strip())

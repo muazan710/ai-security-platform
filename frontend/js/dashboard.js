@@ -83,11 +83,7 @@ function navigateTo(section) {
    CHECK AUTHENTICATION
    ============================================================ */
 function checkAuth() {
-  if (!API_KEY) {
-    window.location.href = "index.html";
-    return false;
-  }
-  return true;
+  return Boolean(API_KEY);
 }
 
 /* ============================================================
@@ -99,7 +95,7 @@ function handleLogout() {
     localStorage.removeItem("access_token");
     localStorage.removeItem("remember_me");
     localStorage.removeItem("user_email");
-    window.location.href = "index.html";
+    window.location.href = "auth.html";
   }
 }
 
@@ -486,12 +482,6 @@ async function analyzeUrl() {
     return;
   }
 
-  if (!API_KEY) {
-    errorEl.textContent = "⚠️ Please save an API key first.";
-    errorEl.style.display = "block";
-    return;
-  }
-
   loadingEl.style.display = "block";
   const checkBtn = document.querySelector("#section-analysis .btn-primary");
   checkBtn.disabled = true;
@@ -501,7 +491,7 @@ async function analyzeUrl() {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "X-API-Key": API_KEY,
+        ...(API_KEY ? { "X-API-Key": API_KEY } : {}),
       },
       body: JSON.stringify({
         url: url,
@@ -511,7 +501,7 @@ async function analyzeUrl() {
       }),
     });
 
-    if (response.status === 401 || response.status === 403) {
+    if (API_KEY && (response.status === 401 || response.status === 403)) {
       alert("Invalid API Key.");
       handleLogout();
       return;
@@ -706,10 +696,21 @@ document.getElementById("urlInput").addEventListener("keydown", (e) => {
    PAGE LOAD
    ============================================================ */
 document.addEventListener("DOMContentLoaded", () => {
-  if (!checkAuth()) return;
+  const signedInInfo = document.getElementById("signedInInfo");
+  const guestActions = document.getElementById("guestActions");
+  const logoutButton = document.getElementById("logoutButton");
+  const signedIn = checkAuth();
+  signedInInfo.style.display = signedIn ? "flex" : "none";
+  guestActions.style.display = signedIn ? "none" : "flex";
+  if (logoutButton) logoutButton.style.display = signedIn ? "flex" : "none";
+  if (!signedIn) {
+    document.querySelectorAll('[data-section="dashboard"], [data-section="history"], [data-section="api-key"]').forEach((item) => {
+      item.style.display = "none";
+    });
+  }
 
   loadBackendVersion();
 
-  // Load dashboard by default
-  navigateTo("dashboard");
+  // Open the public URL checker by default.
+  navigateTo("analysis");
 });

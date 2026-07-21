@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI Security Intelligence Platform</title>
+  <link rel="stylesheet" href="css/auth.css">
+</head>
+<body>
+  <div class="auth-container">
+    <div class="auth-card">
+      <!-- Header -->
+      <div class="auth-header">
+        <h1>🛡️ AI Security Intelligence Platform</h1>
+        <p>Secure Login &amp; User Authentication</p>
+      </div>
+
+      <!-- Tabs -->
+      <div class="auth-tabs">
+        <button type="button" class="auth-tab active" data-tab="login">Login</button>
+        <button type="button" class="auth-tab" data-tab="signup">Sign Up</button>
+      </div>
+
+      <!-- Login Form -->
+      <form class="auth-form active" id="loginForm" novalidate>
+        <div class="form-group">
+          <label for="loginEmail">Email</label>
+          <input type="email" id="loginEmail" placeholder="you@example.com" required>
+        </div>
+        <div class="form-group">
+          <label for="loginPassword">Password</label>
+          <div class="password-wrapper">
+            <input type="password" id="loginPassword" placeholder="Enter your password" required>
+            <button type="button" class="toggle-password" onclick="togglePassword('loginPassword')">👁️</button>
+          </div>
+        </div>
+        <div class="form-options">
+          <label class="remember-me">
+            <input type="checkbox" id="rememberMe">
+            <span>Remember Me</span>
+          </label>
+        </div>
+        <button type="submit" class="btn-primary">Login</button>
+        <div id="loginMessage" class="form-message"></div>
+      </form>
+
+      <!-- Signup Form -->
+      <form class="auth-form" id="signupForm" novalidate>
+        <div class="form-group">
+          <label for="signupName">Full Name</label>
+          <input type="text" id="signupName" placeholder="John Doe" required>
+        </div>
+        <div class="form-group">
+          <label for="signupEmail">Email</label>
+          <input type="email" id="signupEmail" placeholder="you@example.com" required>
+        </div>
+        <div class="form-group">
+          <label for="signupPassword">Password</label>
+          <div class="password-wrapper">
+            <input type="password" id="signupPassword" placeholder="Minimum 8 characters" required>
+            <button type="button" class="toggle-password" onclick="togglePassword('signupPassword')">👁️</button>
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="signupConfirmPassword">Confirm Password</label>
+          <div class="password-wrapper">
+            <input type="password" id="signupConfirmPassword" placeholder="Confirm your password" required>
+            <button type="button" class="toggle-password" onclick="togglePassword('signupConfirmPassword')">👁️</button>
+          </div>
+        </div>
+        <button type="submit" class="btn-primary">Create Account</button>
+        <div id="signupMessage" class="form-message"></div>
+      </form>
+
+      <!-- Footer -->
+      <div class="auth-footer">
+        <p>AI Security Intelligence Platform</p>
+        <p class="version" id="backendVersion">Version loading...</p>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/auth.js"></script>
+</body>
+</html>

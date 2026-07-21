@@ -2,15 +2,15 @@
    ROOT VARIABLES
    ============================================================ */
 :root {
-  --bg-primary: #0b0f14;
-  --bg-card: #121822;
-  --bg-input: #0d1420;
-  --border-color: #1f2937;
-  --text-primary: #e5e7eb;
-  --text-muted: #9ca3af;
-  --text-dark: #6b7280;
-  --accent: #3b82f6;
-  --accent-hover: #2563eb;
+  --bg-primary: #171513;
+  --bg-card: #29231f;
+  --bg-input: #1c1917;
+  --border-color: #4b4038;
+  --text-primary: #fffaf5;
+  --text-muted: #c8bbb0;
+  --text-dark: #927f70;
+  --accent: #f7941d;
+  --accent-hover: #db7310;
   --danger: #ef4444;
   --success: #22c55e;
   --shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.8);
@@ -34,7 +34,7 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: radial-gradient(ellipse at top, #0f172a, #05070a 70%);
+  background: radial-gradient(ellipse at top, #3a2a1e, #17110d 70%);
   color: var(--text-primary);
   padding: 20px;
 }
@@ -83,7 +83,7 @@ body {
   font-size: 24px;
   font-weight: 700;
   letter-spacing: -0.5px;
-  background: linear-gradient(135deg, #60a5fa, #3b82f6);
+  background: linear-gradient(135deg, #ffb347, #f47c20);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -170,7 +170,7 @@ body {
 
 .form-group input:focus {
   border-color: var(--accent);
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+  box-shadow: 0 0 0 3px rgba(247, 148, 29, 0.18);
 }
 
 .form-group input::placeholder {
@@ -254,7 +254,7 @@ body {
 .btn-primary:hover {
   background: var(--accent-hover);
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.35);
+  box-shadow: 0 4px 12px rgba(247, 148, 29, 0.35);
 }
 
 .btn-primary:active {

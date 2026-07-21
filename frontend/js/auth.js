@@ -257,6 +257,10 @@ function initialiseAuthPage() {
     document.getElementById("rememberMe").checked = true;
   }
 
+  if (new URLSearchParams(window.location.search).get("tab") === "signup") {
+    switchTab("signup");
+  }
+
 }
 
 if (document.readyState === "loading") {

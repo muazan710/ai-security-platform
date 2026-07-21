@@ -908,6 +908,14 @@ def frontend_dashboard():
         return FileResponse(dashboard_path)
     return health_payload()
 
+@app.get("/auth.html")
+def frontend_auth():
+    """Serve the login and signup page in deployed backend mode."""
+    auth_path = os.path.join(FRONTEND_DIR, "auth.html")
+    if os.path.exists(auth_path):
+        return FileResponse(auth_path)
+    raise HTTPException(status_code=404, detail="Authentication page not found")
+
 @app.head("/")
 def frontend_head():
     return Response(status_code=200)

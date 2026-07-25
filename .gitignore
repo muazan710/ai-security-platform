@@ -9,11 +9,9 @@ venv/
 env/
 
 # Environment Variables
-.env
 backend/.env
 
 # IDE
-.vscode/
 .idea/
 
 # OS Files
@@ -29,3 +27,9 @@ Thumbs.db
 
 # Jupyter
 .ipynb_checkpoints/
+branch_structure.json
+temp_auto_push.bat
+temp_interactive_push.bat
+.gitignore
+config.bat
+node_modules

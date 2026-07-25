@@ -1,86 +1,307 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <script>window.location.replace("dashboard.html");</script>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Digital Softs - URL Security Check</title>
-  <link rel="stylesheet" href="css/auth.css">
+  <title>URL Detect | Free URL Safety Checker by Digital Softs</title>
+  <meta name="description" content="URL Detect is a free URL safety checker by Digital Softs. Scan suspicious links for phishing, malware and security risks before you open them.">
+  <meta name="keywords" content="URL detector, URL safety checker, phishing link checker, malicious URL scanner, website security check, Digital Softs">
+  <meta name="robots" content="index, follow">
+  <link rel="canonical" href="http://urldetect.tucpos.com/">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="http://urldetect.tucpos.com/">
+  <meta property="og:title" content="URL Detect | Free URL Safety Checker">
+  <meta property="og:description" content="Check suspicious URLs for phishing, malware and security risks before opening them.">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@type":"WebApplication","name":"URL Detect","url":"http://urldetect.tucpos.com/","applicationCategory":"SecurityApplication","operatingSystem":"Web","description":"A free URL safety checker for phishing, malware and suspicious links.","provider":{"@type":"Organization","name":"Digital Softs"}}
+  </script>
+  <link rel="stylesheet" href="css/dashboard.css">
 </head>
 <body>
-  <div class="auth-container">
-    <div class="auth-card">
+  <div class="app-container">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <h2>Digital Softs</h2>
+        <p class="sidebar-subtitle">Digital Softs URL Security</p>
+      </div>
+      <nav class="sidebar-nav">
+        <a href="#" class="nav-item" data-section="dashboard">
+          <span class="nav-icon">📊</span>
+          Dashboard
+        </a>
+        <a href="#" class="nav-item active" data-section="analysis">
+          <span class="nav-icon">🔍</span>
+          URL Analysis
+        </a>
+        <a href="#" class="nav-item" data-section="history">
+          <span class="nav-icon">📜</span>
+          History
+        </a>
+        <a href="#" class="nav-item" data-section="api-key">
+          <span class="nav-icon">🔑</span>
+          API Key
+        </a>
+      </nav>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main-content">
       <!-- Header -->
-      <div class="auth-header">
-        <h1>🛡️ Digital Softs</h1>
-        <p>Secure Login &amp; Account Access</p>
-      </div>
-
-      <!-- Tabs -->
-      <div class="auth-tabs">
-        <button type="button" class="auth-tab active" data-tab="login">Login</button>
-        <button type="button" class="auth-tab" data-tab="signup">Sign Up</button>
-      </div>
-
-      <!-- Login Form -->
-      <form class="auth-form active" id="loginForm" novalidate>
-        <div class="form-group">
-          <label for="loginEmail">Email</label>
-          <input type="email" id="loginEmail" placeholder="you@example.com" required>
+      <header class="main-header">
+        <div class="header-left">
+          <h1 id="pageTitle">Check a URL before you open it</h1>
+          <p class="header-subtitle" id="pageSubtitle">Free URL safety analysis by Digital Soft</p>
         </div>
-        <div class="form-group">
-          <label for="loginPassword">Password</label>
-          <div class="password-wrapper">
-            <input type="password" id="loginPassword" placeholder="Enter your password" required>
-            <button type="button" class="toggle-password" onclick="togglePassword('loginPassword')">👁️</button>
+        <div class="header-right">
+          <div class="user-info" id="signedInInfo">
+            <span class="user-email" id="userEmailDisplay">user@example.com</span>
+            <span class="user-badge">API: <span id="apiKeyPrefix">sk_live_****</span></span>
+            <button type="button" class="btn-secondary header-logout" id="logoutButton" onclick="handleLogout()">Logout</button>
+          </div>
+          <div class="auth-actions" id="guestActions">
+            <a class="btn-secondary" href="auth.html">Login</a>
+            <a class="btn-primary" href="auth.html?tab=signup">Sign Up</a>
           </div>
         </div>
-        <div class="form-options">
-          <label class="remember-me">
-            <input type="checkbox" id="rememberMe">
-            <span>Remember Me</span>
-          </label>
-        </div>
-        <button type="submit" class="btn-primary">Login</button>
-        <div id="loginMessage" class="form-message"></div>
-      </form>
+      </header>
 
-      <!-- Signup Form -->
-      <form class="auth-form" id="signupForm" novalidate>
-        <div class="form-group">
-          <label for="signupName">Full Name</label>
-          <input type="text" id="signupName" placeholder="John Doe" required>
-        </div>
-        <div class="form-group">
-          <label for="signupEmail">Email</label>
-          <input type="email" id="signupEmail" placeholder="you@example.com" required>
-        </div>
-        <div class="form-group">
-          <label for="signupPassword">Password</label>
-          <div class="password-wrapper">
-            <input type="password" id="signupPassword" placeholder="Minimum 8 characters" required>
-            <button type="button" class="toggle-password" onclick="togglePassword('signupPassword')">👁️</button>
+      <!-- Dashboard Section -->
+      <section class="content-section" id="section-dashboard">
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-icon">📊</div>
+            <div class="stat-info">
+              <p class="stat-label">Total Requests</p>
+              <p class="stat-value" id="totalRequests">0</p>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon">🟢</div>
+            <div class="stat-info">
+              <p class="stat-label">Safe URLs</p>
+              <p class="stat-value" id="safeCount">0</p>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon">🟡</div>
+            <div class="stat-info">
+              <p class="stat-label">Suspicious</p>
+              <p class="stat-value" id="suspiciousCount">0</p>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon">🔴</div>
+            <div class="stat-info">
+              <p class="stat-label">Malicious</p>
+              <p class="stat-value" id="maliciousCount">0</p>
+            </div>
           </div>
         </div>
-        <div class="form-group">
-          <label for="signupConfirmPassword">Confirm Password</label>
-          <div class="password-wrapper">
-            <input type="password" id="signupConfirmPassword" placeholder="Confirm your password" required>
-            <button type="button" class="toggle-password" onclick="togglePassword('signupConfirmPassword')">👁️</button>
+
+        <div class="panel">
+          <div class="panel-header">
+            <h3>📈 Recent Activity</h3>
+          </div>
+          <div class="panel-body">
+            <div id="recentActivity">
+              <p class="text-muted">No recent activity yet.</p>
+            </div>
           </div>
         </div>
-        <button type="submit" class="btn-primary">Create Account</button>
-        <div id="signupMessage" class="form-message"></div>
-      </form>
 
-      <!-- Footer -->
-      <div class="auth-footer">
-        <p>Digital Softs</p>
-        <p class="version" id="backendVersion">Version loading...</p>
-      </div>
-    </div>
+        <div class="panel">
+          <div class="panel-header">
+            <h3>👤 User Profile</h3>
+          </div>
+          <div class="panel-body">
+            <div class="profile-grid">
+              <div class="profile-item">
+                <label>Email</label>
+                <span id="profileEmail">-</span>
+              </div>
+              <div class="profile-item">
+                <label>API Key Prefix</label>
+                <span id="profileApiKey">-</span>
+              </div>
+              <div class="profile-item">
+                <label>Total Requests</label>
+                <span id="profileUsage">0</span>
+              </div>
+              <div class="profile-item">
+                <label>Last Login</label>
+                <span id="profileLastLogin">-</span>
+              </div>
+              <div class="profile-item">
+                <label>Account Created</label>
+                <span id="profileCreated">-</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Analysis Section -->
+      <section class="content-section active" id="section-analysis">
+        <div class="guest-intro">
+          <p class="guest-eyebrow">DIGITAL SOFTS · URL DETECT</p>
+          <h2>Check every link before you click</h2>
+          <p>URL Detect is a free security tool that helps you review suspicious website links before opening them. It checks for phishing behaviour, malware signals and other online security risks.</p>
+          <div class="guest-benefits">
+            <article>
+              <strong>1. Paste a URL</strong>
+              <span>Enter any website link you want to check.</span>
+            </article>
+            <article>
+              <strong>2. Scan for risks</strong>
+              <span>Our security checks look for phishing and suspicious patterns.</span>
+            </article>
+            <article>
+              <strong>3. Get a clear result</strong>
+              <span>See whether the link appears safe, suspicious or malicious.</span>
+            </article>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="panel-header">
+            <h3>🔍 URL Analysis</h3>
+          </div>
+          <div class="panel-body">
+            <div class="input-group">
+              <input type="text" id="urlInput" placeholder="Enter URL to analyze..." />
+              <button class="btn-primary" onclick="analyzeUrl()">🔍 Analyze</button>
+            </div>
+            <div class="options-row">
+              <label>
+                <input type="checkbox" id="aiAgentCheck" checked />
+                🤖 AI Agent Explanation
+              </label>
+              <label>
+                <input type="checkbox" id="threatIntelCheck" checked />
+                🛡️ Threat Intelligence
+              </label>
+            </div>
+            <div class="examples">
+              <span onclick="fillExample('https://secure-paypal-login-example.com')">phishing</span>
+              <span onclick="fillExample('https://www.wikipedia.org')">safe</span>
+              <span onclick="fillExample('https://helpdesk-truist.com')">active phishing</span>
+              <span onclick="fillExample('https://deepl-fanyi.com')">malware</span>
+            </div>
+            <p class="public-note">No login needed for a URL check. <a href="auth.html?tab=signup">Create an account</a> to receive and manage an API key.</p>
+          </div>
+        </div>
+
+        <div class="panel" id="resultPanel" style="display:none;">
+          <div class="panel-header">
+            <h3>📊 Analysis Results</h3>
+          </div>
+          <div class="panel-body">
+            <div class="url-display" id="resultUrl"></div>
+
+            <div id="domainStatus" class="domain-status"></div>
+
+            <div class="comparison-grid" id="comparisonGrid"></div>
+
+            <div class="consensus" id="consensus"></div>
+
+            <div id="aiAgentBox" style="display:none;" class="ai-agent-box">
+              <div class="label">🤖 AI Security Agent <span class="badge-ai" id="aiSource">Rule-Based</span></div>
+              <div class="explanation" id="aiExplanation"></div>
+              <div class="details" id="aiRiskSummary"></div>
+              <div class="details" id="aiHumanReadable"></div>
+            </div>
+
+            <div id="threatIntelBox" style="display:none;" class="threat-intel-box">
+              <div class="label">🛡️ External Threat Intelligence</div>
+              <div class="comparison" id="threatComparison"></div>
+              <div class="details" id="threatDetails"></div>
+            </div>
+
+            <details style="margin-top: 16px;">
+              <summary style="cursor:pointer; color: var(--muted); font-size: 13px;">📊 Show extracted features</summary>
+              <div id="featuresGrid"></div>
+            </details>
+          </div>
+        </div>
+
+        <div id="analysisLoading" class="loading" style="display:none;">Analyzing URL...</div>
+        <div id="analysisError" class="error" style="display:none;"></div>
+      </section>
+
+      <!-- History Section -->
+      <section class="content-section" id="section-history">
+        <div class="panel">
+          <div class="panel-header">
+            <h3>📜 Request History</h3>
+            <button class="btn-secondary" onclick="loadHistory()">🔄 Refresh</button>
+          </div>
+          <div class="panel-body">
+            <div class="table-responsive">
+              <table class="history-table">
+                <thead>
+                  <tr>
+                    <th>URL</th>
+                    <th>Prediction</th>
+                    <th>Confidence</th>
+                    <th>Time</th>
+                    <th>Details</th>
+                  </tr>
+                </thead>
+                <tbody id="historyTable">
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- API Key Section -->
+      <section class="content-section" id="section-api-key">
+        <div class="panel">
+          <div class="panel-header">
+            <h3>🔑 API Key Management</h3>
+          </div>
+          <div class="panel-body">
+            <div class="api-key-display">
+              <p><strong>Current API Key Prefix:</strong> <span id="currentApiKeyPrefix">-</span></p>
+              <p style="font-size:12px; color:var(--text-muted); margin-top:4px;">Your full API key is only shown once during generation.</p>
+            </div>
+
+            <div style="margin-top:20px;">
+              <label for="apiKeyInput" style="display:block; font-size:13px; color:var(--text-muted); margin-bottom:6px;">Paste API Key to use:</label>
+              <input type="text" id="apiKeyInput" placeholder="Paste your API Key here..." class="api-key-input" />
+              <div style="display:flex; gap:10px; margin-top:10px; flex-wrap:wrap;">
+                <button class="btn-primary" onclick="saveApiKey()">💾 Save API Key</button>
+                <button class="btn-secondary" onclick="clearApiKey()">🗑 Remove API Key</button>
+                <button class="btn-danger" onclick="regenerateApiKey()">🔄 Regenerate API Key</button>
+              </div>
+            </div>
+
+            <hr style="margin:24px 0; border-color:var(--border-color);">
+
+            <div>
+              <h4 style="font-size:14px; color:var(--text-muted); margin-bottom:10px;">⚙️ API Usage</h4>
+              <div class="api-usage-stats">
+                <div class="stat-mini">
+                  <span class="stat-mini-label">Total Requests</span>
+                  <span class="stat-mini-value" id="apiUsageTotal">0</span>
+                </div>
+                <div class="stat-mini">
+                  <span class="stat-mini-label">Rate Limit</span>
+                  <span class="stat-mini-value">100/hour</span>
+                </div>
+                <div class="stat-mini">
+                  <span class="stat-mini-label">Status</span>
+                  <span class="stat-mini-value" style="color:var(--safe);">✅ Active</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
   </div>
 
-  <script src="js/auth.js"></script>
+  <script src="js/dashboard.js"></script>
 </body>
 </html>

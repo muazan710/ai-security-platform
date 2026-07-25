@@ -194,6 +194,72 @@ body {
   min-height: 100vh;
 }
 
+/* Public guest landing content. It is hidden after login, when the dashboard is used. */
+.guest-intro {
+  display: none;
+  max-width: 900px;
+  margin: 0 auto 28px;
+  text-align: center;
+}
+
+body.guest-view .guest-intro {
+  display: block;
+}
+
+.guest-eyebrow {
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  margin-bottom: 12px;
+}
+
+.guest-intro h2 {
+  font-size: 30px;
+  color: var(--text-primary);
+  margin-bottom: 12px;
+}
+
+.guest-intro > p:not(.guest-eyebrow) {
+  max-width: 700px;
+  margin: 0 auto;
+  color: var(--text-muted);
+  line-height: 1.65;
+}
+
+.guest-benefits {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+  margin-top: 24px;
+  text-align: left;
+}
+
+.guest-benefits article {
+  min-height: 112px;
+  padding: 16px;
+  border: 1px solid rgba(59, 130, 246, 0.25);
+  border-radius: var(--radius-sm);
+  background: rgba(18, 24, 34, 0.86);
+}
+
+.guest-benefits strong,
+.guest-benefits span {
+  display: block;
+}
+
+.guest-benefits strong {
+  color: #bfdbfe;
+  margin-bottom: 8px;
+  font-size: 14px;
+}
+
+.guest-benefits span {
+  color: var(--text-muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
 /* ============================================================
    MAIN HEADER
    ============================================================ */
